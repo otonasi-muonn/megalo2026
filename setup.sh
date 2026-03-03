@@ -6,13 +6,11 @@ echo "2) 中・大規模 (Standard) - 詳細なフルセット設計書"
 read -p "番号を入力 (1 or 2): " size
 
 if [ "$size" == "1" ]; then
-    # 小規模が選ばれたら、standardを消してsmallの中身を外に出す
     rm -rf docs/standard
     mv docs/small/* docs/
     rm -rf docs/small
     echo "✅ 小規模プロジェクト用のドキュメントをセットアップしました！"
 elif [ "$size" == "2" ]; then
-    # 中規模が選ばれたら、smallを消してstandardの中身を外に出す
     rm -rf docs/small
     mv docs/standard/* docs/
     rm -rf docs/standard
@@ -22,7 +20,10 @@ else
     exit 1
 fi
 
-# 用済みのセットアップスクリプト自身を削除（クリーンにするため）
-rm -- "$0"
+# Windows用のスクリプトも不要になるので道連れにして削除
+rm -f setup.bat
 
 echo "🎉 セットアップ完了！さあ、開発を始めましょう。"
+
+# 自分自身(setup.sh)を削除して自壊する
+rm -- "$0"
