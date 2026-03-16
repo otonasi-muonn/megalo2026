@@ -32,17 +32,40 @@
 
 ## 💻 開発環境の構築手順
 
-<!-- プロジェクトをローカルで動かすための具体的なコマンドなどを記述します。以下は例ですので、使用する言語に合わせて書き換えてください -->
+### 前提ツール
 
-1. 依存関係のインストール
-   ```bash
-   # 例: npm install / pip install -r requirements.txt など
-   ```
+- Node.js
+- pnpm
+- Docker Desktop
+- Supabase CLI
 
-2. 開発サーバーの起動
-   ```bash
-   # 例: npm run dev / python main.py など
-   ```
+### 1. 依存関係のインストール
+
+```bash
+pnpm install
+```
+
+### 2. Supabaseローカル環境の起動
+
+```bash
+pnpm supabase:start
+pnpm supabase:status
+```
+
+- `supabase/config.toml` でローカルのDB/Auth/Studioポートを管理します。
+- `supabase/seed.sql` は `supabase db reset` 時に自動実行されます。
+
+### 3. ローカルDBのリセット（マイグレーション + シード再投入）
+
+```bash
+pnpm supabase:reset
+```
+
+### 4. 停止
+
+```bash
+pnpm supabase:stop
+```
 
 ## 📁 主要なディレクトリ構成
 
@@ -51,9 +74,13 @@
 ```text
 .
 ├── .github/          # GitHub Actions ワークフローと Issue/PR テンプレート
-├── docs/             # ドキュメント類
-├── src/              # アプリケーションのソースコード
-├── tests/            # テストコード
+├── apps/
+│   ├── frontend/     # React (Vite)
+│   └── backend/      # Hono API
+├── packages/
+│   └── shared/       # フロント・バック共通の型定義
+├── supabase/         # Supabase CLI設定 / seed / migrations
+├── docs/             # 設計ドキュメント
 └── README.md         # このファイル
 ```
 

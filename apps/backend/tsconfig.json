@@ -2,6 +2,11 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/types": ["../../packages/shared/src/index.ts"],
+      "@shared/types/*": ["../../packages/shared/src/types/*"]
+    },
     "strict": true,
     "skipLibCheck": true,
     "types": ["node"],
