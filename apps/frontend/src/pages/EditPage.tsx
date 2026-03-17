@@ -1,5 +1,6 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
+import { useKAPLAY } from '../features/game/useKAPLAY'
 import type { StageDto, StageResponse } from '../types/api'
 import { apiGet, apiPut } from '../utils/api'
 
@@ -17,6 +18,39 @@ export const EditPage = ({ stageId }: EditPageProps) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
 
+  // ── クリア制限付き公開フラグ ──────────────────────────────
+  // テストプレイでゴール到達した場合のみ true になる。
+  // ステージデータを変更すると false にリセットされ、再テストが必要になる。
+  const [isClearChecked, setIsClearChecked] = useState(false)
+
+  // テストプレイ中かどうか（mode を 'test' に切り替える）
+  const [isTesting, setIsTesting] = useState(false)
+
+  // ゴール到達 / 失敗時のコールバック（useKAPLAY に渡す）
+  const handleTestEnd = useCallback((isCleared: boolean) => {
+    setIsTesting(false)
+    if (isCleared) {
+      setIsClearChecked(true)
+      setResultMessage('テストプレイ：クリア成功！「公開する」ボタンが有効になりました。')
+    } else {
+      setResultMessage('テストプレイ：失敗。再度テストプレイでクリアしてから公開できます。')
+    }
+  }, [])
+
+  // ギミック配置が変化したときのコールバック（useKAPLAY から通知される）
+  const handleStageDataChange = useCallback(() => {
+    setIsClearChecked(false)
+    setResultMessage('ステージを変更しました。公開前に再度テストプレイが必要です。')
+  }, [])
+
+  const { canvasRef, exportStageData } = useKAPLAY({
+    initialStageData: stage?.stage_data ?? undefined,
+    mode: isTesting ? 'test' : 'edit',
+    onGameEnd: handleTestEnd,
+    onStageDataChange: handleStageDataChange,
+  })
+
+  // ステージ読み込み
   useEffect(() => {
     const controller = new AbortController()
 
@@ -30,9 +64,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
         })
         setStage(response.data)
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
+        if (error instanceof DOMException && error.name === 'AbortError') return
         setErrorMessage(getErrorMessage(error))
       } finally {
         setIsLoading(false)
@@ -40,15 +72,13 @@ export const EditPage = ({ stageId }: EditPageProps) => {
     }
 
     void loadStage()
-
     return () => controller.abort()
   }, [stageId])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  // 下書き保存
+  const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-    if (!stage) {
-      return
-    }
+    if (!stage) return
 
     try {
       setIsSaving(true)
@@ -58,7 +88,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
       const response = await apiPut<StageResponse>(`/api/stages/${stageId}`, {
         title: stage.title,
         is_published: stage.is_published,
-        stage_data: stage.stage_data,
+        stage_data: exportStageData(),
       })
 
       setStage(response.data)
@@ -70,12 +100,30 @@ export const EditPage = ({ stageId }: EditPageProps) => {
     }
   }
 
-  const handleTitleChange = (title: string) => {
-    setStage((current) => (current ? { ...current, title } : current))
+  // 公開保存（isClearChecked が true のときのみ呼び出せる）
+  const handlePublish = async () => {
+    if (!stage) return
+    try {
+      setIsSaving(true)
+      setErrorMessage(null)
+      setResultMessage(null)
+
+      const response = await apiPut<StageResponse>(`/api/stages/${stageId}`, {
+        title: stage.title,
+        is_published: true,
+        stage_data: exportStageData(),
+      })
+      setStage(response.data)
+      setResultMessage('ステージを公開しました！')
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handlePublishedChange = (isPublished: boolean) => {
-    setStage((current) => (current ? { ...current, is_published: isPublished } : current))
+  const handleTitleChange = (title: string) => {
+    setStage((current) => (current ? { ...current, title } : current))
   }
 
   return (
@@ -89,35 +137,73 @@ export const EditPage = ({ stageId }: EditPageProps) => {
       {isLoading && <p className="status-text">読み込み中...</p>}
 
       {!isLoading && stage && (
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label className="field-label">
-            タイトル
-            <input
-              className="text-input"
-              type="text"
-              value={stage.title}
-              onChange={(event) => handleTitleChange(event.target.value)}
-            />
-          </label>
-
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={stage.is_published}
-              onChange={(event) => handlePublishedChange(event.target.checked)}
-            />
-            公開状態
-          </label>
-
-          <div className="inline-actions">
-            <button className="button" type="submit" disabled={isSaving}>
-              {isSaving ? '保存中...' : '変更を保存'}
-            </button>
-            <AppLink to={`/play/${stageId}`} className="button secondary">
-              プレイ画面へ
-            </AppLink>
+        <>
+          {/* ゲームキャンバス */}
+          <div className="canvas-wrapper">
+            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
           </div>
-        </form>
+
+          {/* テストプレイ操作 */}
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                setResultMessage(null)
+                setIsTesting(true)
+              }}
+              disabled={isTesting}
+            >
+              {isTesting ? 'テスト中...' : 'テストプレイ開始'}
+            </button>
+            {isTesting && (
+              <p className="status-text">
+                プレイ中です。ゴールに到達すると公開可能になります。
+                （デバッグ: C キー=クリア / F キー=失敗）
+              </p>
+            )}
+          </div>
+
+          {/* クリア確認インジケータ */}
+          {isClearChecked && (
+            <p className="success-text">✓ クリア確認済み。「公開する」ボタンが有効です。</p>
+          )}
+
+          {/* 編集フォーム */}
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <label className="field-label">
+              タイトル
+              <input
+                className="text-input"
+                type="text"
+                value={stage.title}
+                onChange={(event) => handleTitleChange(event.target.value)}
+              />
+            </label>
+
+            <div className="inline-actions">
+              {/* 下書き保存 */}
+              <button className="button secondary" type="submit" disabled={isSaving}>
+                {isSaving ? '保存中...' : '下書き保存'}
+              </button>
+
+              {/* 公開ボタン：クリア確認済みのときのみ活性化 */}
+              <button
+                className="button"
+                type="button"
+                disabled={isSaving || !isClearChecked}
+                title={!isClearChecked ? 'テストプレイでクリアしてから公開できます' : undefined}
+                onClick={handlePublish}
+              >
+                {isSaving ? '保存中...' : '公開する'}
+              </button>
+
+              <AppLink to={`/play/${stageId}`} className="button secondary">
+                プレイ画面へ
+              </AppLink>
+            </div>
+          </form>
+        </>
       )}
 
       {resultMessage && <p className="success-text">{resultMessage}</p>}
