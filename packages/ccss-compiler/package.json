@@ -1,0 +1,19 @@
+{
+  "name": "@ccss/compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "transform": "node dist/cli.js",
+    "sample": "pnpm run build && node dist/cli.js --input examples/input/sample.tsx --outDir examples/output"
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

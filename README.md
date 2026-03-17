@@ -63,6 +63,21 @@ pnpm --filter frontend build
 pnpm --filter hono typecheck
 ```
 
+## 🧪 CCSSトランスパイラPoC（独立CLI）
+
+CCSS設計（`docs/CCSS_complete.md`, `docs/ccss/`）に基づき、React 1ファイルを `C/CSS/manifest` に変換するPoCを `packages/ccss-compiler` に実装しています。
+
+```bash
+pnpm ccss:compiler:typecheck
+pnpm ccss:compiler:sample
+```
+
+`pnpm ccss:compiler:sample` 実行後、以下が生成されます。
+
+- `packages/ccss-compiler/examples/output/ui.generated.c`
+- `packages/ccss-compiler/examples/output/ui.generated.css`
+- `packages/ccss-compiler/examples/output/ccss.manifest.json`
+
 ## 📁 主要ディレクトリ
 
 ```text

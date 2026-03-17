@@ -1,0 +1,4 @@
+dist/
+node_modules/
+examples/output/*
+!examples/output/.gitkeep
