@@ -507,7 +507,6 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       gameInstanceRef.current = null
     }
   // mode が変わったときのみ再起動（stageData の変化は latestStageDataRef 経由で追従）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
   // スワイプ操作（マウス・タッチ両対応）→ 風ラインを windLineRef に書き込む
@@ -600,7 +599,6 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       canvas.removeEventListener('touchend', handleTouchEnd)
     }
   // mode が変わるたびに再登録
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
   // デバッグ用キーボードショートカット（C=クリア / F=失敗）— play / test のみ有効

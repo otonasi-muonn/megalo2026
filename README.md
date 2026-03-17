@@ -1,36 +1,20 @@
-# 🚀 [プロジェクト名を入力]
+# 🚀 megalo2026
 
-<!-- ここにプロジェクトの簡単な説明を書きます。必要に応じてバッジ（CIステータスやライセンスなど）を貼るのもおすすめです -->
-このプロジェクトは、[何をするためのものか、どんな技術を使っているか] のためのベースプロジェクトです。
+スワイプで風を起こしてキャラクターを運ぶ、物理演算アクション + ステージ作成/共有ゲームのモノレポです。  
+フロントエンド（React + Vite）とバックエンド（Hono）で役割を分離し、`packages/shared` で型を共有しています。
 
-## ✨ このテンプレートの使い方
+## 📚 ドキュメント導線
 
-このリポジトリはテンプレートとして構成されています。以下の手順で新しいプロジェクトを素早く開始できます。
+主要な設計ドキュメントは `docs/` にあります。
 
-1. 画面右上の **[Use this template]** ボタンをクリックし、**[Create a new repository]** を選択します。
-2. 新しいリポジトリの名前と詳細を入力し、リポジトリを作成します。
-3. 作成されたリポジトリをローカルにクローンします。
+| ファイル | 内容 |
+| --- | --- |
+| `docs/_complete.md` | プロジェクト全体像（コンセプト、機能、画面、構成） |
+| `docs/01_api-design.md` | API設計（エンドポイント、認可、イベント処理） |
+| `docs/02_db-design.md` | DB設計（テーブル、制約、統計カラム） |
+| `docs/03_front.md` | フロント/ゲーム設計（責任分界、状態遷移、`useKAPLAY` 方針） |
 
-### 🛠 生成後の初期セットアップ
-
-新しくリポジトリを作成した後は、以下の設定を行ってください。
-
-- [x] **プロジェクト規模の設定**: 
-  - **Windows の場合**: エクスプローラーから `setup.bat` をダブルクリックして実行します。
-  - **Mac / Linux の場合**: ターミナルで `chmod +x setup.sh && ./setup.sh` を実行します。
-  *(※実行完了後、セットアップスクリプトは自動的に自壊してリポジトリから消去されます)*
-- [ ] **プロジェクト情報の更新**: この `README.md` のタイトルと説明文を、あなたのプロジェクトの内容に書き換えてください。
-- [ ] **AIへの指示の更新**: `.github/copilot-instructions.md` の `Project Specific Rules` に、このプロジェクト固有のルールを追記してください。
-- [ ] **ライセンスの確認**: `LICENSE` ファイルの年や作者名を確認し、必要に応じて更新してください。
-- [x] **ラベルの移行**: Issueのラベルを引き継ぐため、ターミナルで以下のコマンドを実行してください（※要 GitHub CLI）。
-  ```bash
-  gh label clone otonasi-muonn/template-repo --force
-  ```
-- [ ] **環境変数の設定**: `.env.example` をコピーして `.env` を作成し、必要なキーを設定してください（※環境変数を使用する場合）。
-
----
-
-## 💻 開発環境の構築手順
+## 💻 開発環境セットアップ
 
 ### 前提ツール
 
@@ -45,50 +29,59 @@
 pnpm install
 ```
 
-### 2. Supabaseローカル環境の起動
+### 2. Supabase ローカル環境の起動
 
 ```bash
 pnpm supabase:start
 pnpm supabase:status
 ```
 
-- `supabase/config.toml` でローカルのDB/Auth/Studioポートを管理します。
-- `supabase/seed.sql` は `supabase db reset` 時に自動実行されます。
+- `supabase/config.toml` でローカルの DB/Auth/Studio ポートを管理します。
+- `supabase/seed.sql` は `pnpm supabase:reset` 実行時に再投入されます。
 
-### 3. ローカルDBのリセット（マイグレーション + シード再投入）
+### 3. アプリケーション起動
+
+別ターミナルでそれぞれ起動します。
+
+```bash
+pnpm --filter hono dev
+pnpm --filter frontend dev
+```
+
+### 4. DBリセット / 停止
 
 ```bash
 pnpm supabase:reset
-```
-
-### 4. 停止
-
-```bash
 pnpm supabase:stop
 ```
 
-## 📁 主要なディレクトリ構成
+## ✅ 検証コマンド
 
-<!-- チームメンバーや未来の自分が迷わないよう、主要なフォルダの役割を書いておくと親切です -->
+```bash
+pnpm --filter frontend lint
+pnpm --filter frontend build
+pnpm --filter hono typecheck
+```
+
+## 📁 主要ディレクトリ
 
 ```text
 .
-├── .github/          # GitHub Actions ワークフローと Issue/PR テンプレート
+├── .github/          # GitHub Actions / Issue・PRテンプレート
 ├── apps/
 │   ├── frontend/     # React (Vite)
 │   └── backend/      # Hono API
 ├── packages/
-│   └── shared/       # フロント・バック共通の型定義
-├── supabase/         # Supabase CLI設定 / seed / migrations
+│   └── shared/       # フロント・バック共通型
+├── supabase/         # Supabase CLI設定 / migrations / seed
 ├── docs/             # 設計ドキュメント
-└── README.md         # このファイル
+└── README.md
 ```
 
 ## 🤝 コントリビューション
 
-このプロジェクトへの貢献（バグ報告や機能追加など）については、[CONTRIBUTING.md](CONTRIBUTING.md) のガイドラインをご一読ください。
-また、健全なコミュニティを維持するため、[行動規範 (CODE_OF_CONDUCT.md)](CODE_OF_CONDUCT.md) への準拠をお願いしています。
+開発フロー・ブランチ命名・PRルールは [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
 ## 📄 ライセンス
 
-このプロジェクトは [MIT License](LICENSE) のもとで公開されています。
+[MIT License](LICENSE)
