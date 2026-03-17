@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
 import type {
@@ -22,6 +22,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
   const [isTogglingLike, setIsTogglingLike] = useState(false)
   const [likeMessage, setLikeMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const finishingRef = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -67,9 +68,17 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
     }
   }
 
-  const handleFinishPlay = (cleared: boolean) => {
+  const handleFinishPlay = useCallback((cleared: boolean) => {
+    if (finishingRef.current) {
+      return
+    }
+    finishingRef.current = true
     navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
-  }
+    // 結果遷移を優先し、ログはバックグラウンド送信する
+    void apiPost(`/api/stages/${stageId}/play_logs`, { is_cleared: cleared }).catch(() => {
+      // ログ送信失敗はゲーム体験に影響させない
+    })
+  }, [stageId])
 
   const { canvasRef } = useKAPLAY({
     initialStageData: stage?.stage_data,
@@ -99,7 +108,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
           </p>
 
           <div className="canvas-wrapper">
-            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
+            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
           </div>
 
           <div className="inline-actions">

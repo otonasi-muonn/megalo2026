@@ -588,13 +588,12 @@ app.post('/api/stages/:id/play_logs', optionalAuth, async (c) => {
     return dbError(c, logError, 'プレイログ記録に失敗しました')
   }
 
-  const { data: updatedStage, error: updateError } = await supabase.rpc(
-    'increment_stage_counters',
-    {
+  const { data: updatedStage, error: updateError } = await supabase
+    .rpc('increment_stage_counters', {
       p_stage_id: stageId,
       p_clear_increment: isCleared ? 1 : 0,
-    },
-  )
+    })
+    .single()
 
   if (updateError) {
     return dbError(c, updateError, 'ステージ統計更新に失敗しました')
@@ -665,12 +664,12 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
     }
   }
 
-  const { data: updatedStage, error: recalcError } = await supabase
+  const { data: updatedStage, error: updateError } = await supabase
     .rpc('recalc_stage_like_count', { stage_id: stageId })
     .single()
 
-  if (recalcError) {
-    return dbError(c, recalcError, 'ステージのいいね件数更新に失敗しました')
+  if (updateError) {
+    return dbError(c, updateError, 'ステージのいいね件数更新に失敗しました')
   }
 
   return c.json({
