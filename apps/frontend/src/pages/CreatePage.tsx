@@ -1,8 +1,9 @@
-import { type FormEvent, useMemo, useRef, useState } from 'react'
 import { createEmptyStageData } from '@shared/types'
+import { useCallback, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { AppLink } from '../components/AppLink'
 import { ItemPalette } from '../components/ItemPalette'
 import { useKAPLAY } from '../features/game/useKAPLAY'
+import { createUnplacedGoalPosition, isGoalPlaced } from '../features/game/stageEditorConstants'
 import type { StageResponse } from '../types/api'
 import { apiPost } from '../utils/api'
 
@@ -50,18 +51,15 @@ export const CreatePage = () => {
     const base = createEmptyStageData()
     return {
       ...base,
-      goal: { ...base.goal, position: { x: -9999, y: -9999 } },
+      goal: {
+        ...base.goal,
+        position: createUnplacedGoalPosition(),
+      },
     }
   }, [])
-  const { canvasRef, exportStageData, addItem, addItemAtStage, pickItemAt, getItemAt, removeItem, rotateItem } = useKAPLAY({
-    initialStageData,
-    mode: 'edit',
-  })
 
-  const [title, setTitle] = useState('')
-  const [isPublished, setIsPublished] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [createdStageId, setCreatedStageId] = useState<string | null>(null)
+  const [isClearChecked, setIsClearChecked] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [liftedItem, setLiftedItem] = useState<LiftedItem | null>(null)
@@ -69,11 +67,49 @@ export const CreatePage = () => {
   const longPressTimerRef = useRef<number | null>(null)
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleTestEnd = useCallback((isCleared: boolean) => {
+    setIsTesting(false)
+    if (isCleared) {
+      setIsClearChecked(true)
+      setResultMessage('テストプレイ：クリア成功！「公開して作成」ボタンが有効になりました。')
+    } else {
+      setResultMessage('テストプレイ：失敗。公開する場合は再度テストプレイでクリアしてください。')
+    }
+  }, [])
+
+  const handleStageDataChange = useCallback(() => {
+    setIsClearChecked(false)
+    setResultMessage('ステージを変更しました。公開前に再度テストプレイが必要です。')
+  }, [])
+
+  const {
+    canvasRef,
+    exportStageData,
+    addItem,
+    addItemAtStage,
+    pickItemAt,
+    getItemAt,
+    removeItem,
+    rotateItem,
+  } = useKAPLAY({
+    initialStageData,
+    mode: isTesting ? 'test' : 'edit',
+    onGameEnd: handleTestEnd,
+    onStageDataChange: handleStageDataChange,
+  })
+
+  const [title, setTitle] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [createdStageId, setCreatedStageId] = useState<string | null>(null)
+
+  const handleSubmit = async (
+    event: { preventDefault: () => void },
+    publishNow: boolean,
+  ) => {
     event.preventDefault()
 
     const stageData = exportStageData()
-    if (stageData.goal.position.x < -9000) {
+    if (!isGoalPlaced(stageData.goal.position)) {
       setErrorMessage('ゴールを設置してください')
       return
     }
@@ -85,12 +121,16 @@ export const CreatePage = () => {
 
       const response = await apiPost<StageResponse>('/api/stages', {
         title: title.trim() || 'Untitled Stage',
-        is_published: isPublished,
+        is_published: publishNow,
         stage_data: stageData,
       })
 
       setCreatedStageId(response.data.id)
-      setResultMessage(`ステージを作成しました: ${response.data.id}`)
+      setResultMessage(
+        publishNow
+          ? `ステージを公開しました: ${response.data.id}`
+          : `ステージを下書き保存しました: ${response.data.id}`,
+      )
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -98,7 +138,7 @@ export const CreatePage = () => {
     }
   }
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
   }
@@ -126,13 +166,12 @@ export const CreatePage = () => {
     pendingPressRef.current = null
   }
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || liftedItem) {
       return
     }
 
     const pointerId = event.pointerId
-
     const point = toCanvasPoint(event.clientX, event.clientY)
     if (!point) {
       return
@@ -172,7 +211,7 @@ export const CreatePage = () => {
     }, 300)
   }
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const pending = pendingPressRef.current
     if (pending && pending.pointerId === event.pointerId) {
       pendingPressRef.current = {
@@ -193,7 +232,6 @@ export const CreatePage = () => {
       if (!current || current.pointerId !== event.pointerId) {
         return current
       }
-
       return {
         ...current,
         clientX: event.clientX,
@@ -202,7 +240,7 @@ export const CreatePage = () => {
     })
   }
 
-  const finishLiftedMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const finishLiftedMove = (event: PointerEvent<HTMLDivElement>) => {
     clearLongPress()
 
     const current = liftedItem
@@ -210,7 +248,6 @@ export const CreatePage = () => {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
-      // 短押し：ヒットしたアイテムを選択、外れたら選択解除
       const point = toCanvasPoint(event.clientX, event.clientY)
       if (point) {
         setSelectedItem(getItemAt(point.canvasX, point.canvasY))
@@ -243,7 +280,7 @@ export const CreatePage = () => {
     setLiftedItem(null)
   }
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     const itemKind = event.dataTransfer.getData('item-kind')
     if (!itemKind || !canvasRef.current) return
@@ -275,7 +312,7 @@ export const CreatePage = () => {
         onPointerUp={finishLiftedMove}
         onPointerCancel={finishLiftedMove}
       >
-        <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
+        <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
         {selectedItem && (
           <>
             <button
@@ -286,7 +323,10 @@ export const CreatePage = () => {
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
-              onClick={() => { removeItem(selectedItem.id); setSelectedItem(null) }}
+              onClick={() => {
+                removeItem(selectedItem.id)
+                setSelectedItem(null)
+              }}
               aria-label="削除"
             >
               ×
@@ -299,7 +339,13 @@ export const CreatePage = () => {
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
-              onClick={() => { rotateItem(selectedItem.id); setSelectedItem({ ...selectedItem, rotationDeg: (selectedItem.rotationDeg + 90) % 360 }) }}
+              onClick={() => {
+                rotateItem(selectedItem.id)
+                setSelectedItem({
+                  ...selectedItem,
+                  rotationDeg: (selectedItem.rotationDeg + 90) % 360,
+                })
+              }}
               aria-label="回転"
             >
               ↻
@@ -307,11 +353,9 @@ export const CreatePage = () => {
           </>
         )}
       </div>
+
       {liftedItem ? (
-        <div
-          className="lifted-item-preview"
-          style={{ left: liftedItem.clientX, top: liftedItem.clientY }}
-        >
+        <div className="lifted-item-preview" style={{ left: liftedItem.clientX, top: liftedItem.clientY }}>
           <img
             src={ITEM_IMAGES[liftedItem.kind].src}
             alt={ITEM_IMAGES[liftedItem.kind].label}
@@ -321,7 +365,30 @@ export const CreatePage = () => {
         </div>
       ) : null}
 
-      <form className="form-grid" onSubmit={handleSubmit}>
+      <div className="inline-actions">
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            setResultMessage(null)
+            setIsTesting(true)
+          }}
+          disabled={isTesting}
+        >
+          {isTesting ? 'テスト中...' : 'テストプレイ開始'}
+        </button>
+        {isTesting && (
+          <p className="status-text">
+            プレイ中です。ゴールに到達すると公開可能になります。（デバッグ: C キー=クリア / F キー=失敗）
+          </p>
+        )}
+      </div>
+
+      {isClearChecked && (
+        <p className="success-text">✓ クリア確認済み。「公開して作成」ボタンが有効です。</p>
+      )}
+
+      <form className="form-grid" onSubmit={(e) => handleSubmit(e, false)}>
         <label className="field-label">
           タイトル
           <input
@@ -333,18 +400,18 @@ export const CreatePage = () => {
           />
         </label>
 
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={isPublished}
-            onChange={(event) => setIsPublished(event.target.checked)}
-          />
-          公開状態で作成する
-        </label>
-
         <div className="inline-actions">
-          <button className="button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '保存中...' : 'ステージ作成'}
+          <button className="button secondary" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? '保存中...' : '下書き保存'}
+          </button>
+          <button
+            className="button"
+            type="button"
+            disabled={isSubmitting || !isClearChecked}
+            title={!isClearChecked ? 'テストプレイでクリアしてから公開できます' : undefined}
+            onClick={(e) => handleSubmit(e, true)}
+          >
+            {isSubmitting ? '保存中...' : '公開して作成'}
           </button>
           <AppLink to="/dashboard" className="button secondary">
             ダッシュボードへ

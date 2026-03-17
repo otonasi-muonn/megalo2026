@@ -200,8 +200,8 @@ export const createEmptyStageData = (): StageData => ({
   },
   physics: {
     gravity: { x: 0, y: 9.8 },
-    airDrag: 0.02,
-    windDecay: 0.9,
+    airDrag: 0.012,             // 空気抵抗を下げてスワイプの効きを良くする
+    windDecay: 0.08,            // 風の減衰率（1フレームあたり8%減、2秒程度で消える）
     windForceScale: 1,
   },
   spawn: {
