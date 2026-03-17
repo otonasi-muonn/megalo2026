@@ -588,17 +588,13 @@ app.post('/api/stages/:id/play_logs', optionalAuth, async (c) => {
     return dbError(c, logError, 'プレイログ記録に失敗しました')
   }
 
-  const nextPlayCount = stage.play_count + 1
-  const nextClearCount = stage.clear_count + (isCleared ? 1 : 0)
-  const { data: updatedStage, error: updateError } = await supabase
-    .from('stages')
-    .update({
-      play_count: nextPlayCount,
-      clear_count: nextClearCount,
-    })
-    .eq('id', stageId)
-    .select('play_count,clear_count')
-    .single()
+  const { data: updatedStage, error: updateError } = await supabase.rpc(
+    'increment_stage_counters',
+    {
+      p_stage_id: stageId,
+      p_clear_increment: isCleared ? 1 : 0,
+    },
+  )
 
   if (updateError) {
     return dbError(c, updateError, 'ステージ統計更新に失敗しました')
