@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
 import type {
@@ -67,9 +67,16 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
     }
   }
 
-  const handleFinishPlay = (cleared: boolean) => {
-    navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
-  }
+  const handleFinishPlay = useCallback((cleared: boolean) => {
+    // バックグラウンドでプレイログを送信してから結果画面へ遷移（仕様書 §3 結果画面フロー）
+    apiPost(`/api/stages/${stageId}/play_logs`, { is_cleared: cleared })
+      .catch(() => {
+        // ログ送信失敗はゲーム体験に影響させない（サイレントに握りつぶす）
+      })
+      .finally(() => {
+        navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
+      })
+  }, [stageId])
 
   const { canvasRef } = useKAPLAY({
     initialStageData: stage?.stage_data,
