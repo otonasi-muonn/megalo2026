@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
+import { Trash2 } from 'lucide-react'
+import { PencilLine } from 'lucide-react'
 import type {
   Pagination,
   ProfileResponse,
@@ -18,12 +20,49 @@ const initialPagination: Pagination = {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
+const mockStages: StageListItemDto[] = [
+  {
+    id: '1',
+    title: '仮のステージ 1',
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: '仮のステージ 2',
+    is_published: false,
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export const DashboardPage = () => {
   const [displayName, setDisplayName] = useState('未取得')
-  const [stages, setStages] = useState<StageListItemDto[]>([])
-  const [pagination, setPagination] = useState<Pagination>(initialPagination)
+  const [stages, setStages] = useState<StageListItemDto[]>(mockStages) // 仮データを初期値に設定
+  const [pagination, setPagination] = useState<Pagination>({
+    ...initialPagination,
+    total: mockStages.length,
+    total_pages: 1,
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handleDeleteStage = (stageId: string) => {
+    if (confirm('このステージを削除してもよろしいですか？')) {
+      setStages((prevStages) => prevStages.filter((stage) => stage.id !== stageId))
+      setPagination((prevPagination) => ({
+        ...prevPagination,
+        total: prevPagination.total - 1,
+      }))
+    }
+  }
+
+  const handleEditStageName = (stageId: string, newName: string) => {
+    setStages((prevStages) => {
+      return prevStages.map((stage) =>
+        stage.id === stageId ? { ...stage, title: newName } : stage
+      );
+    });
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -54,6 +93,13 @@ export const DashboardPage = () => {
           return
         }
         setErrorMessage(getErrorMessage(error))
+        // エラー時に仮データを使用
+        setStages(mockStages)
+        setPagination({
+          ...initialPagination,
+          total: mockStages.length,
+          total_pages: 1,
+        })
       } finally {
         setIsLoading(false)
       }
@@ -95,7 +141,9 @@ export const DashboardPage = () => {
             {stages.map((stage) => (
               <li key={stage.id} className="stage-item">
                 <div>
-                  <strong>{stage.title}</strong>
+                  <strong contentEditable onBlur={(e) => handleEditStageName(stage.id, e.target.textContent || stage.title)}>
+                    {stage.title}
+                  </strong>
                   <p className="meta-text">
                     公開状態: {stage.is_published ? '公開' : '非公開'} / 更新日:{' '}
                     {new Date(stage.updated_at).toLocaleDateString('ja-JP')}
@@ -103,11 +151,18 @@ export const DashboardPage = () => {
                 </div>
                 <div className="inline-actions">
                   <AppLink to={`/edit/${stage.id}`} className="button secondary">
-                    編集
+                    <PencilLine />
                   </AppLink>
                   <AppLink to={`/play/${stage.id}`} className="button secondary">
                     テストプレイ
                   </AppLink>
+                  <button
+                    onClick={() => handleDeleteStage(stage.id)}
+                    className="button secondary"
+                    style={{ backgroundColor: 'red', color: 'white' }}
+                  >
+                    <Trash2 />
+                  </button>
                 </div>
               </li>
             ))}
