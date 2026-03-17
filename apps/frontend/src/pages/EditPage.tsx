@@ -140,7 +140,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
         <>
           {/* ゲームキャンバス */}
           <div className="canvas-wrapper">
-            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
+            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
           </div>
 
           {/* テストプレイ操作 */}
