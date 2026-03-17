@@ -42,7 +42,7 @@ UI状態は「非表示入力 + CSSセレクタ」で表現します。
 | --- | --- | --- | --- |
 | KAPLAY | `game:end` | JS Glue | クリア/失敗情報を受け取り、ログ保存APIを呼ぶ |
 | JS Glue | `ui:state:set` | CSS状態管理 | 該当stateチェックボックスを更新 |
-| API | `style:patch` | JS Glue | 返却CSSを差し替えてUI再描画を誘導 |
+| API | `style:patch` | JS Glue | 返却 `classList` を適用し、`recipeIds` を監査相関キーとして保持 |
 | WASM | `view:rendered` | JS Glue | 次の非同期処理（画像遅延読み込み等）へ移行 |
 
 ## 6. アクセシビリティ方針
@@ -54,7 +54,7 @@ UI状態は「非表示入力 + CSSセレクタ」で表現します。
 ## 7. 失敗時フォールバック
 
 - WASM初期化失敗時は静的HTMLに退避し、最低限の一覧閲覧を提供
-- CSSパッチ取得失敗時は前回キャッシュを維持し、再試行導線を表示
+- スタイルパッチ（`recipeIds` / `classList`）取得失敗時は前回キャッシュを維持し、再試行導線を表示
 - KAPLAY初期化失敗時は「編集のみ可能」モードへ降格
 - 差し替え禁止領域（`#ccss-game-root`）への更新要求を検知した場合は処理を中断し、直前UIを維持したまま `#ccss-ui-root` のみ再描画再試行する
 

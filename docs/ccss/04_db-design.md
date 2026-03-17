@@ -47,7 +47,7 @@
 
 | カラム | 型 | 制約 | 説明 |
 | --- | --- | --- | --- |
-| `id` | `uuid` | PK | パッチID（API `patchId`） |
+| `id` | `text` | PK | パッチID（API `patchId` をそのまま保存） |
 | `request_id` | `text` | Not Null | APIリクエスト相関ID |
 | `view` | `text` | Not Null | 対象画面 |
 | `state_id` | `text` | Not Null | 変更対象状態 |
@@ -69,7 +69,7 @@
 | `state_id` | `text` | Not Null | 発火状態 |
 | `event_name` | `text` | Not Null | `ui:state:set` 等 |
 | `request_id` | `text` |  | APIリクエスト紐付け |
-| `patch_id` | `uuid` | FK(`ccss_style_patches.id`) | 適用パッチ紐付け |
+| `patch_id` | `text` | FK(`ccss_style_patches.id`) | 適用パッチ紐付け |
 | `payload` | `jsonb` | Default `{}` | 付帯データ |
 | `created_at` | `timestamptz` | Default `now()` | 記録時刻 |
 

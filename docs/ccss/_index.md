@@ -29,3 +29,5 @@
 - 「技術の無駄遣い」コンセプトは保持する。
 - ただし、実装時に破綻しないよう入力制約・責務境界・失敗時挙動を明記する。
 - UI層（C/WASM + CSS）とゲーム層（KAPLAY JS）とAPI層（Hono）の接続点はイベント契約で固定する。
+- DOMは `#ccss-ui-root`（WASM差し替え専用）と `#ccss-game-root`（KAPLAY専用）を物理分離し、越境更新を禁止する。
+- `style-patch` は構造的無害化を前提とし、任意CSS文字列を返さず `recipeIds` + `classList` のみ返却する。
