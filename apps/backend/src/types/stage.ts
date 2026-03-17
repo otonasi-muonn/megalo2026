@@ -4,3 +4,5 @@ export type {
   StageGimmickKind,
   StageSchemaVersion,
 } from '@shared/types'
+
+export { createEmptyStageData, isStageData } from '@shared/types'
