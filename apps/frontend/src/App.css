@@ -49,7 +49,7 @@
 }
 
 .page-card {
-  background: #ffffff;
+  background: #dbfdbe;
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 20px;
@@ -155,6 +155,157 @@
   border-radius: 10px;
   overflow: hidden;
   background: #0f172a;
+  position: relative;
+}
+
+.item-delete-btn {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: background 0.1s;
+}
+
+.item-delete-btn:hover {
+  background: #dc2626;
+}
+
+.item-rotate-btn {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: background 0.1s;
+}
+
+.item-rotate-btn:hover {
+  background: #2563eb;
+}
+
+.canvas-wrapper.sea-background {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.3) 1px,
+      transparent 1px,
+      transparent 32px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.3) 1px,
+      transparent 1px,
+      transparent 32px
+    ),
+    url('/images/sea.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.canvas-wrapper.is-lifting {
+  cursor: url('/cursors/grabbing.svg') 8 3, grabbing;
+}
+
+.item-palette {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: url('/cursors/grab.svg') 8 3, grab;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.palette-item:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.palette-item:active {
+  cursor: url('/cursors/grabbing.svg') 8 3, grabbing;
+}
+
+.palette-item-image {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.palette-item-label {
+  font-size: 11px;
+  color: #000000;
+  font-weight: 600;
+}
+
+.lifted-item-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.28);
+}
+
+.lifted-item-preview-image {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.lifted-item-preview-label {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .game-canvas {

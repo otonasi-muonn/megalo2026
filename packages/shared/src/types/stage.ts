@@ -32,6 +32,7 @@ export interface StageSpawnPoint {
 export interface StageGoalArea {
   position: Vector2
   size: Size2D
+  rotationDeg?: number
 }
 
 export type StageGimmickKind = 'spike' | 'spring' | 'fan' | 'wave' | 'wall'
@@ -55,6 +56,7 @@ export interface SpringGimmick extends StageGimmickBase<'spring'> {
 }
 
 export interface FanGimmick extends StageGimmickBase<'fan'> {
+  size?: Size2D
   force: number
   range: number
   direction: Vector2
@@ -138,6 +140,7 @@ const isStageGimmick = (value: unknown): value is StageGimmick => {
       )
     case 'fan':
       return (
+        (value.size === undefined || isSize2D(value.size)) &&
         isFiniteNumber(value.force) &&
         isFiniteNumber(value.range) &&
         isVector2(value.direction)

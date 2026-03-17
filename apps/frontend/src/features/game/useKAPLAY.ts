@@ -1,374 +1,33 @@
-import { createEmptyStageData, type StageData } from '@shared/types'
+import { createEmptyStageData, type StageData, type StageGimmick, type StageGimmickKind } from '@shared/types'
 import { useCallback, useEffect, useRef } from 'react'
+import { createUnplacedGoalPosition, isGoalPlaced } from './stageEditorConstants'
+import { buildAlphaMask, getGimmickSize, getMaskHit, pixelCollision, toItemKind } from './useKAPLAY.canvas'
+import { calcWindForce, detectCollision, isCharTouchingWindLine, WIND_APPLY_STEPS, WIND_MAX_LIFETIME_MS } from './useKAPLAY.physics'
+import { drawStagePreview } from './useKAPLAY.renderer'
+import type {
+  AlphaMask,
+  CharState,
+  GimmickImageMap,
+  MockKaplayInstance,
+  PickedItem,
+  SwipeState,
+  UseKAPLAYProps,
+  WindLine,
+} from './useKAPLAY.types'
 
-export interface UseKAPLAYProps {
-  initialStageData?: StageData
-  mode: 'play' | 'edit' | 'test'
-  onGameEnd?: (isCleared: boolean) => void
-  /** エディタ上でギミック配置が変化したときに呼ばれるコールバック */
-  onStageDataChange?: () => void
-}
-
-interface MockKaplayInstance {
-  destroy: () => void
-}
-
-// ステージ座標系でのキャラクター状態
-interface CharState {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  /** ステージ座標系での半径 */
-  radius: number
-}
-
-// ──────────────────────────────────────────
-// 当たり判定ユーティリティ
-// ──────────────────────────────────────────
-
-/**
- * 円（キャラ）と軸平行矩形（ゴール・スパイク）の衝突判定。
- * 正確な円×矩形判定を使用し、AABB 近似による誤検知を防ぐ。
- */
-const isCircleCollidingRect = (
-  cx: number,
-  cy: number,
-  radius: number,
-  rx: number,
-  ry: number,
-  rw: number,
-  rh: number,
-): boolean => {
-  // 矩形の最近接点を求める
-  const nearestX = Math.max(rx, Math.min(cx, rx + rw))
-  const nearestY = Math.max(ry, Math.min(cy, ry + rh))
-  const dx = cx - nearestX
-  const dy = cy - nearestY
-  return dx * dx + dy * dy < radius * radius
-}
-
-type CollisionResult = 'none' | 'goal' | 'spike'
-
-/**
- * キャラクターとステージオブジェクトの衝突を判定し、結果を返す。
- * goal が優先（ゴールとスパイクが重なるステージへの対応）。
- */
-const detectCollision = (char: CharState, stageData: StageData): CollisionResult => {
-  const { goal, gimmicks, world } = stageData
-
-  // ゴール判定
-  if (
-    isCircleCollidingRect(
-      char.x,
-      char.y,
-      char.radius,
-      goal.position.x,
-      goal.position.y,
-      goal.size.width,
-      goal.size.height,
-    )
-  ) {
-    return 'goal'
-  }
-
-  // ステージ外落下（下辺・左右辺を超えた場合も失敗）
-  if (
-    char.y - char.radius > world.height ||
-    char.x + char.radius < 0 ||
-    char.x - char.radius > world.width
-  ) {
-    return 'spike'
-  }
-
-  // スパイク判定
-  for (const gimmick of gimmicks) {
-    if (gimmick.kind !== 'spike') {
-      continue
-    }
-    if (
-      isCircleCollidingRect(
-        char.x,
-        char.y,
-        char.radius,
-        gimmick.position.x,
-        gimmick.position.y,
-        gimmick.size.width,
-        gimmick.size.height,
-      )
-    ) {
-      return 'spike'
-    }
-  }
-
-  return 'none'
-}
-
-// ──────────────────────────────────────────
-// 描画ユーティリティ
-// ──────────────────────────────────────────
-
-const toCanvasX = (stageX: number, stageWidth: number, canvasWidth: number): number =>
-  (stageX / stageWidth) * canvasWidth
-
-const toCanvasY = (stageY: number, stageHeight: number, canvasHeight: number): number =>
-  (stageY / stageHeight) * canvasHeight
-
-const drawStagePreview = (
-  context: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-  stageData: StageData,
-  mode: UseKAPLAYProps['mode'],
-  frame: number,
-  char: CharState,
-  windLine: WindLine | null,
-) => {
-  const { world, spawn, goal, gimmicks } = stageData
-  const sw = world.width
-  const sh = world.height
-
-  // 背景
-  context.fillStyle = mode === 'play' ? '#1f2937' : '#111827'
-  context.fillRect(0, 0, canvasWidth, canvasHeight)
-
-  // スポーン地点（薄く表示）
-  context.fillStyle = 'rgba(147, 197, 253, 0.3)'
-  context.beginPath()
-  context.arc(
-    toCanvasX(spawn.position.x, sw, canvasWidth),
-    toCanvasY(spawn.position.y, sh, canvasHeight),
-    8,
-    0,
-    Math.PI * 2,
-  )
-  context.fill()
-
-  // ゴールエリア
-  context.fillStyle = '#34d399'
-  context.fillRect(
-    toCanvasX(goal.position.x, sw, canvasWidth),
-    toCanvasY(goal.position.y, sh, canvasHeight),
-    (goal.size.width / sw) * canvasWidth,
-    (goal.size.height / sh) * canvasHeight,
-  )
-  // ゴールラベル
-  context.fillStyle = '#ffffff'
-  context.font = '11px sans-serif'
-  context.textAlign = 'center'
-  context.fillText(
-    'GOAL',
-    toCanvasX(goal.position.x + goal.size.width / 2, sw, canvasWidth),
-    toCanvasY(goal.position.y + goal.size.height / 2, sh, canvasHeight) + 4,
-  )
-
-  // ギミック描画
-  for (const gimmick of gimmicks) {
-    const x = toCanvasX(gimmick.position.x, sw, canvasWidth)
-    const y = toCanvasY(gimmick.position.y, sh, canvasHeight)
-
-    switch (gimmick.kind) {
-      case 'wall': {
-        context.fillStyle = '#9ca3af'
-        context.fillRect(
-          x,
-          y,
-          (gimmick.size.width / sw) * canvasWidth,
-          (gimmick.size.height / sh) * canvasHeight,
-        )
-        break
-      }
-      case 'spike': {
-        const w = (gimmick.size.width / sw) * canvasWidth
-        const h = (gimmick.size.height / sh) * canvasHeight
-        context.fillStyle = '#ef4444'
-        context.beginPath()
-        context.moveTo(x, y + h)
-        context.lineTo(x + w / 2, y)
-        context.lineTo(x + w, y + h)
-        context.closePath()
-        context.fill()
-        break
-      }
-      case 'spring': {
-        const w = (gimmick.size.width / sw) * canvasWidth
-        const h = (gimmick.size.height / sh) * canvasHeight
-        context.strokeStyle = '#f59e0b'
-        context.lineWidth = 2
-        context.beginPath()
-        context.moveTo(x, y + h)
-        context.lineTo(x + w * 0.25, y)
-        context.lineTo(x + w * 0.5, y + h)
-        context.lineTo(x + w * 0.75, y)
-        context.lineTo(x + w, y + h)
-        context.stroke()
-        break
-      }
-      case 'fan': {
-        context.strokeStyle = '#60a5fa'
-        context.lineWidth = 2
-        context.beginPath()
-        context.moveTo(x, y)
-        context.lineTo(x + 18, y)
-        context.stroke()
-        const pulse = 12 + Math.sin(frame / 12) * 4
-        context.strokeStyle = '#93c5fd'
-        context.beginPath()
-        context.moveTo(x + 18, y)
-        context.lineTo(x + 18 + pulse, y)
-        context.stroke()
-        break
-      }
-      case 'wave': {
-        context.strokeStyle = '#a78bfa'
-        context.lineWidth = 2
-        context.beginPath()
-        for (let i = 0; i <= 32; i += 1) {
-          const progress = i / 32
-          const waveX = x + progress * 120
-          const waveY = y + Math.sin(progress * Math.PI * 2 + frame * 0.08) * 8
-          if (i === 0) context.moveTo(waveX, waveY)
-          else context.lineTo(waveX, waveY)
-        }
-        context.stroke()
-        break
-      }
-    }
-  }
-
-  // キャラクター描画（edit モードは spawn に静止）
-  const charCx = toCanvasX(char.x, sw, canvasWidth)
-  const charCy = toCanvasY(char.y, sh, canvasHeight)
-  const charCr = (char.radius / sw) * canvasWidth
-
-  context.fillStyle = '#facc15'
-  context.beginPath()
-  context.arc(charCx, charCy, charCr, 0, Math.PI * 2)
-  context.fill()
-
-  // キャラクターの目（進行方向を示す）
-  if (mode !== 'edit') {
-    context.fillStyle = '#1f2937'
-    const eyeOffsetX = Math.sign(char.vx) * charCr * 0.3 + charCr * 0.25
-    context.beginPath()
-    context.arc(charCx + eyeOffsetX, charCy - charCr * 0.2, charCr * 0.2, 0, Math.PI * 2)
-    context.fill()
-  }
-
-  // 風ライン描画（残り時間に応じてフェードアウト）
-  if (windLine !== null && windLine.points.length >= 2) {
-    const elapsed = performance.now() - windLine.endTime
-    const alpha = Math.max(0, 1 - elapsed / 1500)
-    context.save()
-    context.globalAlpha = alpha
-    context.strokeStyle = '#7dd3fc'
-    context.lineWidth = 3
-    context.lineCap = 'round'
-    context.lineJoin = 'round'
-    context.setLineDash([6, 4])
-    context.beginPath()
-    context.moveTo(windLine.points[0].x, windLine.points[0].y)
-    for (let i = 1; i < windLine.points.length; i++) {
-      context.lineTo(windLine.points[i].x, windLine.points[i].y)
-    }
-    context.stroke()
-    context.restore()
-  }
-}
-
-// ──────────────────────────────────────────
-// スワイプ操作ユーティリティ
-// ──────────────────────────────────────────
-
-interface SwipeState {
-  points: { x: number; y: number }[]
-  startTime: number
-}
-
-/** キャンバス座標系でのスワイプ軌跡。スワイプ終了後1.5秒間有効 */
-interface WindLine {
-  /** キャンバス座標系の点列 */
-  points: { x: number; y: number }[]
-  /** スワイプ終了時刻（performance.now()） */
-  endTime: number
-  /** 風の力ベクトル（ステージ座標系） */
-  fx: number
-  fy: number
-  /** 残りの風適用ステップ数 */
-  remainingSteps: number
-  /** 1ステップごとの減衰率（0.0〜0.95） */
-  decay: number
-  /** 減衰重みの合計（総インパルスを超えないための正規化係数） */
-  totalWeight: number
-}
-
-const WIND_MAX_LIFETIME_MS = 1500
-const WIND_APPLY_STEPS = 12
-
-/**
- * スワイプベクトル（キャンバス座標系）からステージ座標系での風の力を算出する。
- *
- * @param dx          キャンバス座標系でのX変位（px）
- * @param dy          キャンバス座標系でのY変位（px）
- * @param durationMs  スワイプにかかった時間（ms）
- * @param canvasWidth  キャンバス幅（px）
- * @param stageWidth  ステージ幅（ステージ座標）
- * @param forceScale  ステージ設定の windForceScale
- * @returns ステージ座標系での風の力ベクトル { fx, fy }
- */
-const calcWindForce = (
-  dx: number,
-  dy: number,
-  durationMs: number,
-  canvasWidth: number,
-  stageWidth: number,
-  forceScale: number,
-): { fx: number; fy: number } => {
-  const durationSec = Math.max(durationMs / 1000, 0.016)
-  const scale = stageWidth / canvasWidth
-
-  // スワイプ速度（ステージ座標系 px/s）
-  const speedX = (dx / durationSec) * scale
-  const speedY = (dy / durationSec) * scale
-  const speed = Math.hypot(speedX, speedY)
-
-  // スワイプ距離（ステージ座標系 px）
-  const distX = dx * scale
-  const distY = dy * scale
-  const dist = Math.hypot(distX, distY)
-
-  // インパルス強度 = 速度 × 距離 の積を正規化し、二乗で非線形化
-  // → 遅く短いスワイプは弱く、速く長いスワイプは強く効く
-  const RAW_MAX_SPEED = 4000   // この速度で speed 成分が 1.0 になる基準値
-  const RAW_MAX_DIST  = 600    // この距離で dist 成分が 1.0 になる基準値
-  const normSpeed = Math.min(speed / RAW_MAX_SPEED, 1.0)
-  const normDist  = Math.min(dist  / RAW_MAX_DIST,  1.0)
-
-  // 速度と距離の積を二乗して感度差を拡大（0.0〜1.0 の範囲）
-  const strength = (normSpeed * normDist) ** 2
-
-  const MAX_IMPULSE = 2200 * forceScale
-  const impulse = strength * MAX_IMPULSE
-
-  // 方向は速度ベクトルから（forceScale は MAX_IMPULSE 側で適用済み）
-  const safeDenom = speed > 0 ? speed : 1
-  const fx = (speedX / safeDenom) * impulse
-  const fy = (speedY / safeDenom) * impulse
-  return { fx, fy }
-}
-
-// ──────────────────────────────────────────
-// フック本体
-// ──────────────────────────────────────────
-
-export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange }: UseKAPLAYProps) => {
+export const useKAPLAY = ({
+  initialStageData,
+  mode,
+  onGameEnd,
+  onStageDataChange,
+}: UseKAPLAYProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameInstanceRef = useRef<MockKaplayInstance | null>(null)
   const latestStageDataRef = useRef<StageData>(initialStageData ?? createEmptyStageData())
-  // コールバックは最新参照を保持（useEffect の依存配列に含めずに済む）
+  const gimmickMasksRef = useRef<Partial<Record<StageGimmickKind, AlphaMask>>>({})
+  const goalMaskRef = useRef<AlphaMask | null>(null)
   const onGameEndRef = useRef(onGameEnd)
   const onStageDataChangeRef = useRef(onStageDataChange)
-  // スワイプ軌跡と風の力。ゲームループ・描画から参照される
   const windLineRef = useRef<WindLine | null>(null)
 
   useEffect(() => {
@@ -379,17 +38,10 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
     onStageDataChangeRef.current = onStageDataChange
   }, [onStageDataChange])
 
-  const isFirstStageDataRef = useRef(true)
-
   useEffect(() => {
     latestStageDataRef.current = initialStageData ?? createEmptyStageData()
-    // props由来の同期では onStageDataChange を発火しない（ローカル編集通知と分離）
-    if (isFirstStageDataRef.current) {
-      isFirstStageDataRef.current = false
-    }
   }, [initialStageData])
 
-  // ゲームループ（mode が変わるたびに再起動）
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -400,21 +52,49 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
     const stageData = latestStageDataRef.current
     const { spawn } = stageData
 
-    // 前回ゲームのスワイプ状態をリセット
     windLineRef.current = null
 
-    // キャラクター初期化（ステージ座標系）
     const char: CharState = {
       x: spawn.position.x,
       y: spawn.position.y,
-      vx: mode === 'edit' ? 0 : 120, // edit は静止
+      vx: mode === 'edit' ? 0 : 120,
       vy: 0,
       radius: 24,
     }
 
-    const FPS = 60
-    const DT = 1 / FPS
-    // 衝突が発火済みかどうか（二重発火防止）
+    const playerImage = new Image()
+    let playerImageLoaded = false
+    playerImage.onload = () => {
+      playerImageLoaded = true
+    }
+    playerImage.src = '/images/player.png'
+
+    const goalImage = new Image()
+    let goalImageLoaded = false
+    goalImage.onload = () => {
+      goalImageLoaded = true
+      goalMaskRef.current = buildAlphaMask(goalImage)
+    }
+    goalImage.src = '/images/gool.png'
+
+    const gimmickImages: GimmickImageMap = {}
+    const gimmickImageSrcs: [StageGimmickKind, string][] = [
+      ['spike', '/images/toge.png'],
+      ['spring', '/images/bane.png'],
+      ['fan', '/images/souhuuki.png'],
+      ['wall', '/images/block.png'],
+    ]
+    for (const [kind, src] of gimmickImageSrcs) {
+      const img = new Image()
+      img.src = src
+      img.onload = () => {
+        gimmickImages[kind] = img
+        gimmickMasksRef.current[kind] = buildAlphaMask(img)
+      }
+    }
+
+    const fps = 60
+    const dt = 1 / fps
     let collisionFired = false
     let frame = 0
     let animationFrameId: number | null = null
@@ -423,73 +103,77 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       frame += 1
 
       if (mode !== 'edit' && !collisionFired) {
-        // 物理更新（重力・速度）
-        const physics = latestStageDataRef.current.physics
-
-        // 風ライン当たり判定：キャラが風ラインに触れていたら力を加える
+        const latestStageData = latestStageDataRef.current
+        const physics = latestStageData.physics
         const windLine = windLineRef.current
+
         if (windLine !== null) {
           const elapsed = performance.now() - windLine.endTime
           if (elapsed > WIND_MAX_LIFETIME_MS || windLine.remainingSteps <= 0) {
-            // 1.5秒経過で消滅
             windLineRef.current = null
-          } else {
-            // キャンバス座標系でのキャラ位置に変換して距離判定
-            const { world } = latestStageDataRef.current
-            const charCx = (char.x / world.width) * canvas.width
-            const charCy = (char.y / world.height) * canvas.height
-            const charCr = (char.radius / world.width) * canvas.width
-            // 風ラインの各セグメントとの最短距離を確認
-            const pts = windLine.points
-            let hit = false
-            for (let i = 0; i < pts.length - 1; i++) {
-              const ax = pts[i].x,   ay = pts[i].y
-              const bx = pts[i + 1].x, by = pts[i + 1].y
-              const abx = bx - ax, aby = by - ay
-              const lenSq = abx * abx + aby * aby
-              const t = lenSq > 0 ? Math.max(0, Math.min(1, ((charCx - ax) * abx + (charCy - ay) * aby) / lenSq)) : 0
-              const nearX = ax + t * abx, nearY = ay + t * aby
-              if (Math.hypot(charCx - nearX, charCy - nearY) < charCr + 6) {
-                hit = true
-                break
-              }
-            }
-            if (hit) {
-              const retention = 1 - windLine.decay
-              const appliedIndex = WIND_APPLY_STEPS - windLine.remainingSteps
-              const stepWeight = retention ** appliedIndex
-              const stepScale = stepWeight / windLine.totalWeight
-              char.vx += windLine.fx * stepScale
-              char.vy += windLine.fy * stepScale
-              windLine.remainingSteps -= 1
-              if (windLine.remainingSteps <= 0) {
-                windLineRef.current = null
-              }
+          } else if (
+            isCharTouchingWindLine(
+              char,
+              latestStageData.world.width,
+              latestStageData.world.height,
+              canvas.width,
+              canvas.height,
+              windLine.points,
+            )
+          ) {
+            const retention = 1 - windLine.decay
+            const appliedIndex = WIND_APPLY_STEPS - windLine.remainingSteps
+            const stepWeight = retention ** appliedIndex
+            const stepScale = stepWeight / windLine.totalWeight
+            char.vx += windLine.fx * stepScale
+            char.vy += windLine.fy * stepScale
+            windLine.remainingSteps -= 1
+            if (windLine.remainingSteps <= 0) {
+              windLineRef.current = null
             }
           }
         }
 
-        char.vy += physics.gravity.y * DT * 60
+        char.vy += physics.gravity.y * dt * 60
         char.vx *= 1 - physics.airDrag
         char.vy *= 1 - physics.airDrag
-        char.x += char.vx * DT
-        char.y += char.vy * DT
+        char.x += char.vx * dt
+        char.y += char.vy * dt
 
-        // 上辺バウンス
         if (char.y - char.radius < 0) {
           char.y = char.radius
           char.vy = Math.abs(char.vy) * 0.5
         }
 
-        // 当たり判定
-        const collision = detectCollision(char, latestStageDataRef.current)
+        const collision = detectCollision(char, latestStageData)
         if (collision !== 'none') {
           collisionFired = true
-          // 最後のフレームを描画してからコールバックを呼ぶ
-          drawStagePreview(context, canvas.width, canvas.height, latestStageDataRef.current, mode, frame, char, windLineRef.current)
+          drawStagePreview(
+            context,
+            canvas.width,
+            canvas.height,
+            latestStageData,
+            mode,
+            frame,
+            char,
+            windLineRef.current,
+            {
+              playerImage: playerImageLoaded ? playerImage : null,
+              goalImage: goalImageLoaded ? goalImage : null,
+              gimmickImages,
+            },
+          )
           onGameEndRef.current?.(collision === 'goal')
           return
         }
+      }
+
+      if (mode === 'edit') {
+        const latestStageData = latestStageDataRef.current
+        char.x = latestStageData.spawn.position.x
+        char.y = latestStageData.spawn.position.y
+        char.vx = 0
+        char.vy = 0
       }
 
       drawStagePreview(
@@ -501,7 +185,13 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
         frame,
         char,
         windLineRef.current,
+        {
+          playerImage: playerImageLoaded ? playerImage : null,
+          goalImage: goalImageLoaded ? goalImage : null,
+          gimmickImages,
+        },
       )
+
       animationFrameId = window.requestAnimationFrame(tick)
     }
 
@@ -520,10 +210,8 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       gameInstanceRef.current?.destroy()
       gameInstanceRef.current = null
     }
-  // mode が変わったときのみ再起動（stageData の変化は latestStageDataRef 経由で追従）
   }, [mode, initialStageData])
 
-  // スワイプ操作（マウス・タッチ両対応）→ 風ラインを windLineRef に書き込む
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || mode === 'edit') return
@@ -544,7 +232,6 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       const x = clientX - rect.left
       const y = clientY - rect.top
       const last = swipe.points[swipe.points.length - 1]
-      // 前の点から一定距離離れたら追加（点が密になりすぎるのを防ぐ）
       if (Math.hypot(x - last.x, y - last.y) >= 4) {
         swipe.points.push({ x, y })
       }
@@ -554,13 +241,14 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       if (swipe === null) return
       const rect = canvas.getBoundingClientRect()
       swipe.points.push({ x: clientX - rect.left, y: clientY - rect.top })
-      const pts = swipe.points
+      const points = swipe.points
       const durationMs = performance.now() - swipe.startTime
       swipe = null
 
-      // 極端に短いスワイプ（タップ誤検知）は無視
-      const first = pts[0], last = pts[pts.length - 1]
-      const dx = last.x - first.x, dy = last.y - first.y
+      const first = points[0]
+      const last = points[points.length - 1]
+      const dx = last.x - first.x
+      const dy = last.y - first.y
       if (Math.hypot(dx, dy) < 8) return
 
       const { world, physics } = latestStageDataRef.current
@@ -577,8 +265,9 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       const totalWeight = retention === 1
         ? WIND_APPLY_STEPS
         : (1 - retention ** WIND_APPLY_STEPS) / (1 - retention)
+
       windLineRef.current = {
-        points: pts,
+        points,
         endTime: performance.now(),
         fx,
         fy,
@@ -588,24 +277,24 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       }
     }
 
-    // ── マウスイベント ──
-    const handleMouseDown = (e: MouseEvent) => onSwipeStart(e.clientX, e.clientY)
-    const handleMouseMove = (e: MouseEvent) => onSwipeMove(e.clientX, e.clientY)
-    const handleMouseUp   = (e: MouseEvent) => onSwipeEnd(e.clientX, e.clientY)
-    const handleMouseLeave = () => { swipe = null }
+    const handleMouseDown = (event: MouseEvent) => onSwipeStart(event.clientX, event.clientY)
+    const handleMouseMove = (event: MouseEvent) => onSwipeMove(event.clientX, event.clientY)
+    const handleMouseUp = (event: MouseEvent) => onSwipeEnd(event.clientX, event.clientY)
+    const handleMouseLeave = () => {
+      swipe = null
+    }
 
-    // ── タッチイベント ──
-    const handleTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0]
-      if (t) onSwipeStart(t.clientX, t.clientY)
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (touch) onSwipeStart(touch.clientX, touch.clientY)
     }
-    const handleTouchMove = (e: TouchEvent) => {
-      const t = e.touches[0]
-      if (t) onSwipeMove(t.clientX, t.clientY)
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (touch) onSwipeMove(touch.clientX, touch.clientY)
     }
-    const handleTouchEnd = (e: TouchEvent) => {
-      const t = e.changedTouches[0]
-      if (t) onSwipeEnd(t.clientX, t.clientY)
+    const handleTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0]
+      if (touch) onSwipeEnd(touch.clientX, touch.clientY)
     }
 
     canvas.addEventListener('mousedown', handleMouseDown)
@@ -625,10 +314,8 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       canvas.removeEventListener('touchmove', handleTouchMove)
       canvas.removeEventListener('touchend', handleTouchEnd)
     }
-  // mode が変わるたびに再登録
   }, [mode, initialStageData])
 
-  // デバッグ用キーボードショートカット（C=クリア / F=失敗）— play / test のみ有効
   useEffect(() => {
     if (mode !== 'play' && mode !== 'test') return
 
@@ -641,13 +328,378 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [mode])
 
+  const setStageData = useCallback((nextStageData: StageData) => {
+    latestStageDataRef.current = nextStageData
+    onStageDataChangeRef.current?.()
+  }, [])
+
   const exportStageData = useCallback((): StageData => latestStageDataRef.current, [])
+
+  const placeItemAtStage = useCallback((itemKind: string, stageX: number, stageY: number, rotationDeg?: number): boolean => {
+    const stageData = latestStageDataRef.current
+
+    const playerSize = 120
+    const spawnPos = stageData.spawn.position
+    const spawnMargin = stageData.world.gridSize * 2
+    const playerMinX = spawnPos.x - playerSize / 2 - spawnMargin
+    const playerMaxX = spawnPos.x + playerSize / 2 + spawnMargin
+    const playerMinY = spawnPos.y - playerSize / 2 - spawnMargin
+    const playerMaxY = spawnPos.y + playerSize / 2 + spawnMargin
+
+    if (itemKind === 'gool') {
+      const newW = 180
+      const newH = 180
+      const posX = stageX - newW / 2
+      const posY = stageY - newH / 2
+
+      if (
+        posX < playerMaxX &&
+        posX + newW > playerMinX &&
+        posY < playerMaxY &&
+        posY + newH > playerMinY
+      ) {
+        return false
+      }
+
+      const goalMask = goalMaskRef.current
+      if (goalMask) {
+        const hasOverlap = stageData.gimmicks.some((gimmick) => {
+          const gimmickMask = gimmickMasksRef.current[gimmick.kind]
+          if (!gimmickMask) return false
+          const gimmickSize = getGimmickSize(gimmick)
+          return pixelCollision(
+            goalMask,
+            posX,
+            posY,
+            newW,
+            newH,
+            gimmickMask,
+            gimmick.position.x,
+            gimmick.position.y,
+            gimmickSize.width,
+            gimmickSize.height,
+          )
+        })
+        if (hasOverlap) return false
+      }
+
+      setStageData({
+        ...stageData,
+        goal: {
+          ...stageData.goal,
+          position: { x: posX, y: posY },
+          size: { width: newW, height: newH },
+          rotationDeg: rotationDeg ?? 0,
+        },
+      })
+      return true
+    }
+
+    const kindMap: Partial<Record<string, StageGimmickKind>> = {
+      bane: 'spring',
+      block: 'wall',
+      souhuuki: 'fan',
+      toge: 'spike',
+    }
+    const kind = kindMap[itemKind]
+    if (!kind) return false
+
+    let newGimmick: StageGimmick
+    switch (kind) {
+      case 'spike':
+        newGimmick = { id: crypto.randomUUID(), kind, position: { x: stageX - 64, y: stageY - 64 }, size: { width: 128, height: 128 }, rotationDeg: rotationDeg ?? 0, damage: 1 }
+        break
+      case 'spring':
+        newGimmick = { id: crypto.randomUUID(), kind, position: { x: stageX - 48, y: stageY - 48 }, size: { width: 96, height: 96 }, rotationDeg: rotationDeg ?? 0, power: 500 }
+        break
+      case 'fan':
+        newGimmick = { id: crypto.randomUUID(), kind, position: { x: stageX - 120, y: stageY - 120 }, size: { width: 240, height: 240 }, rotationDeg: rotationDeg ?? 0, force: 200, range: 150, direction: { x: 0, y: -1 } }
+        break
+      case 'wall':
+        newGimmick = { id: crypto.randomUUID(), kind, position: { x: stageX - 130, y: stageY - 48 }, size: { width: 260, height: 96 }, rotationDeg: rotationDeg ?? 0 }
+        break
+      default:
+        return false
+    }
+
+    const newSize = getGimmickSize(newGimmick)
+
+    if (
+      newGimmick.position.x < playerMaxX &&
+      newGimmick.position.x + newSize.width > playerMinX &&
+      newGimmick.position.y < playerMaxY &&
+      newGimmick.position.y + newSize.height > playerMinY
+    ) {
+      return false
+    }
+
+    const newMask = gimmickMasksRef.current[kind]
+    if (newMask) {
+      const hasGimmickOverlap = stageData.gimmicks.some((gimmick) => {
+        const gimmickMask = gimmickMasksRef.current[gimmick.kind]
+        if (!gimmickMask) return false
+        const gimmickSize = getGimmickSize(gimmick)
+        return pixelCollision(
+          newMask,
+          newGimmick.position.x,
+          newGimmick.position.y,
+          newSize.width,
+          newSize.height,
+          gimmickMask,
+          gimmick.position.x,
+          gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
+      })
+      if (hasGimmickOverlap) return false
+
+      const goalPos = stageData.goal.position
+      if (isGoalPlaced(goalPos) && goalMaskRef.current) {
+        const goalSize = stageData.goal.size
+        if (
+          pixelCollision(
+            newMask,
+            newGimmick.position.x,
+            newGimmick.position.y,
+            newSize.width,
+            newSize.height,
+            goalMaskRef.current,
+            goalPos.x,
+            goalPos.y,
+            goalSize.width,
+            goalSize.height,
+          )
+        ) {
+          return false
+        }
+      }
+    }
+
+    setStageData({
+      ...stageData,
+      gimmicks: [...stageData.gimmicks, newGimmick],
+    })
+
+    return true
+  }, [setStageData])
+
+  const addItem = useCallback((itemKind: string, canvasX: number, canvasY: number, rotationDeg?: number) => {
+    const canvas = canvasRef.current
+    if (!canvas) return false
+
+    const stageData = latestStageDataRef.current
+    const stageX = (canvasX / canvas.width) * stageData.world.width
+    const stageY = (canvasY / canvas.height) * stageData.world.height
+    return placeItemAtStage(itemKind, stageX, stageY, rotationDeg)
+  }, [placeItemAtStage])
+
+  const addItemAtStage = useCallback((itemKind: string, stageX: number, stageY: number, rotationDeg?: number) => (
+    placeItemAtStage(itemKind, stageX, stageY, rotationDeg)
+  ), [placeItemAtStage])
+
+  const pickItemAt = useCallback((canvasX: number, canvasY: number): PickedItem | null => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const stageData = latestStageDataRef.current
+    const stageX = (canvasX / canvas.width) * stageData.world.width
+    const stageY = (canvasY / canvas.height) * stageData.world.height
+
+    const goalPos = stageData.goal.position
+    if (isGoalPlaced(goalPos)) {
+      const goalSize = stageData.goal.size
+      if (
+        stageX >= goalPos.x &&
+        stageX < goalPos.x + goalSize.width &&
+        stageY >= goalPos.y &&
+        stageY < goalPos.y + goalSize.height
+      ) {
+        const hit = getMaskHit(goalMaskRef.current, stageX - goalPos.x, stageY - goalPos.y, goalSize.width, goalSize.height)
+        if (hit) {
+          setStageData({
+            ...stageData,
+            goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
+          })
+          return {
+            kind: 'gool',
+            stageX: goalPos.x + goalSize.width / 2,
+            stageY: goalPos.y + goalSize.height / 2,
+            rotationDeg: stageData.goal.rotationDeg ?? 0,
+          }
+        }
+      }
+    }
+
+    const gimmicks = stageData.gimmicks
+    for (let i = gimmicks.length - 1; i >= 0; i -= 1) {
+      const gimmick = gimmicks[i]
+      const gimmickSize = getGimmickSize(gimmick)
+      if (
+        stageX >= gimmick.position.x &&
+        stageX < gimmick.position.x + gimmickSize.width &&
+        stageY >= gimmick.position.y &&
+        stageY < gimmick.position.y + gimmickSize.height
+      ) {
+        const hit = getMaskHit(
+          gimmickMasksRef.current[gimmick.kind],
+          stageX - gimmick.position.x,
+          stageY - gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
+        if (hit) {
+          const itemKind = toItemKind(gimmick.kind)
+          if (!itemKind) return null
+
+          setStageData({
+            ...stageData,
+            gimmicks: gimmicks.filter((_, idx) => idx !== i),
+          })
+          return {
+            kind: itemKind,
+            stageX: gimmick.position.x + gimmickSize.width / 2,
+            stageY: gimmick.position.y + gimmickSize.height / 2,
+            rotationDeg: gimmick.rotationDeg ?? 0,
+          }
+        }
+      }
+    }
+
+    return null
+  }, [setStageData])
+
+  const getItemAt = useCallback((canvasX: number, canvasY: number): { id: string; kind: string; stageX: number; stageY: number; stageW: number; stageH: number; rotationDeg: number } | null => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    const stageData = latestStageDataRef.current
+    const stageX = (canvasX / canvas.width) * stageData.world.width
+    const stageY = (canvasY / canvas.height) * stageData.world.height
+
+    const goalPos = stageData.goal.position
+    if (isGoalPlaced(goalPos)) {
+      const goalSize = stageData.goal.size
+      if (
+        stageX >= goalPos.x &&
+        stageX < goalPos.x + goalSize.width &&
+        stageY >= goalPos.y &&
+        stageY < goalPos.y + goalSize.height &&
+        getMaskHit(goalMaskRef.current, stageX - goalPos.x, stageY - goalPos.y, goalSize.width, goalSize.height)
+      ) {
+        return {
+          id: 'gool',
+          kind: 'gool',
+          stageX: goalPos.x,
+          stageY: goalPos.y,
+          stageW: goalSize.width,
+          stageH: goalSize.height,
+          rotationDeg: stageData.goal.rotationDeg ?? 0,
+        }
+      }
+    }
+
+    const gimmicks = stageData.gimmicks
+    for (let i = gimmicks.length - 1; i >= 0; i -= 1) {
+      const gimmick = gimmicks[i]
+      const gimmickSize = getGimmickSize(gimmick)
+      if (
+        stageX >= gimmick.position.x &&
+        stageX < gimmick.position.x + gimmickSize.width &&
+        stageY >= gimmick.position.y &&
+        stageY < gimmick.position.y + gimmickSize.height &&
+        getMaskHit(
+          gimmickMasksRef.current[gimmick.kind],
+          stageX - gimmick.position.x,
+          stageY - gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
+      ) {
+        return {
+          id: gimmick.id,
+          kind: toItemKind(gimmick.kind) ?? gimmick.kind,
+          stageX: gimmick.position.x,
+          stageY: gimmick.position.y,
+          stageW: gimmickSize.width,
+          stageH: gimmickSize.height,
+          rotationDeg: gimmick.rotationDeg ?? 0,
+        }
+      }
+    }
+
+    return null
+  }, [])
+
+  const removeItem = useCallback((id: string) => {
+    const stageData = latestStageDataRef.current
+
+    if (id === 'gool') {
+      if (!isGoalPlaced(stageData.goal.position)) {
+        return
+      }
+      setStageData({
+        ...stageData,
+        goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
+      })
+      return
+    }
+
+    const nextGimmicks = stageData.gimmicks.filter((gimmick) => gimmick.id !== id)
+    if (nextGimmicks.length === stageData.gimmicks.length) {
+      return
+    }
+
+    setStageData({
+      ...stageData,
+      gimmicks: nextGimmicks,
+    })
+  }, [setStageData])
+
+  const rotateItem = useCallback((id: string) => {
+    const stageData = latestStageDataRef.current
+
+    if (id === 'gool') {
+      const nextRot = ((stageData.goal.rotationDeg ?? 0) + 90) % 360
+      setStageData({
+        ...stageData,
+        goal: { ...stageData.goal, rotationDeg: nextRot },
+      })
+      return
+    }
+
+    let changed = false
+    const nextGimmicks = stageData.gimmicks.map((gimmick) => {
+      if (gimmick.id !== id) {
+        return gimmick
+      }
+      changed = true
+      const nextRot = ((gimmick.rotationDeg ?? 0) + 90) % 360
+      return { ...gimmick, rotationDeg: nextRot }
+    })
+    if (!changed) {
+      return
+    }
+
+    setStageData({
+      ...stageData,
+      gimmicks: nextGimmicks,
+    })
+  }, [setStageData])
 
   return {
     canvasRef,
     exportStageData,
+    addItem,
+    addItemAtStage,
+    pickItemAt,
+    getItemAt,
+    removeItem,
+    rotateItem,
   }
 }
