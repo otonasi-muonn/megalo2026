@@ -276,21 +276,56 @@ export const applySpringBounce = (char: CharState, stageData: StageData): void =
     const ry = gimmick.position.y
     const rw = gimmick.size.width
     const rh = gimmick.size.height
+    const rotDeg = gimmick.rotationDeg ?? 0
 
+    // 円と矩形の衝突判定
     if (!isCircleCollidingRect(char.x, char.y, char.radius, rx, ry, rw, rh)) {
       continue
     }
 
-    const springTop = ry
-    const isApproachingFromTop = char.vy >= 0 && char.y <= ry + rh * 0.65
-    if (!isApproachingFromTop) {
+    // 回転に応じた法線方向を計算
+    const radians = (rotDeg * Math.PI) / 180
+    const normalX = Math.sin(radians)
+    const normalY = -Math.cos(radians)
+
+    // バネの中心から見たプレイヤーへのベクトル
+    const springCenterX = rx + rw / 2
+    const springCenterY = ry + rh / 2
+    const toCharX = char.x - springCenterX
+    const toCharY = char.y - springCenterY
+
+    // プレイヤーがバネの表面側にいるかチェック（法線方向への投影が正）
+    const positionDot = toCharX * normalX + toCharY * normalY
+    if (positionDot < 0) {
       continue
     }
 
-    // バネの上面に押し戻してから、上向き速度を付与
-    char.y = springTop - char.radius - 1
+    // プレイヤーの速度がバネに向かっているかチェック（法線の反対方向）
+    const normalVelComponent = char.vx * normalX + char.vy * normalY
+    if (normalVelComponent >= 0) {
+      continue // 離れていく場合はスキップ
+    }
+
+    // プレイヤーをバネ表面に配置
+    const pushDistance = char.radius + 1
+    char.x = springCenterX + normalX * pushDistance
+    char.y = springCenterY + normalY * pushDistance
+
+    // 入ってきた速度の大きさを保持（物理的な反射）
+    const incomingVelMagnitude = Math.sqrt(char.vx * char.vx + char.vy * char.vy)
+    
+    // 接線方向（バネに平行）の速度成分を保持
+    const tangentX = -normalY
+    const tangentY = normalX
+    const tangentVelComponent = char.vx * tangentX + char.vy * tangentY
+
+    // 法線方向に反射＋バネ力を加える
     const minBounce = Math.max(60, gimmick.power * 0.22)
-    char.vy = -Math.max(minBounce, Math.abs(char.vy) * 1.1)
+    const bounceVelComponent = Math.max(minBounce, incomingVelMagnitude * 1.1)
+
+    // 新しい速度 = 法線成分 + 接線成分（接線をより保持）
+    char.vx = normalX * bounceVelComponent + tangentX * (tangentVelComponent * 0.95)
+    char.vy = normalY * bounceVelComponent + tangentY * (tangentVelComponent * 0.95)
   }
 }
 
