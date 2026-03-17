@@ -138,6 +138,17 @@ export const CreatePage = () => {
     }
   }
 
+  const handleStartTestPlay = () => {
+    const stageData = exportStageData()
+    if (!isGoalPlaced(stageData.goal.position)) {
+      setErrorMessage('ゴールを設置してください')
+      return
+    }
+    setErrorMessage(null)
+    setResultMessage(null)
+    setIsTesting(true)
+  }
+
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
@@ -369,10 +380,7 @@ export const CreatePage = () => {
         <button
           type="button"
           className="button secondary"
-          onClick={() => {
-            setResultMessage(null)
-            setIsTesting(true)
-          }}
+          onClick={handleStartTestPlay}
           disabled={isTesting}
         >
           {isTesting ? 'テスト中...' : 'テストプレイ開始'}
@@ -422,7 +430,7 @@ export const CreatePage = () => {
       {resultMessage && <p className="success-text">{resultMessage}</p>}
       {errorMessage && (
         <p className="error-text" role="alert">
-          保存失敗: {errorMessage}
+          {errorMessage === 'ゴールを設置してください' ? errorMessage : `保存失敗: ${errorMessage}`}
         </p>
       )}
 
