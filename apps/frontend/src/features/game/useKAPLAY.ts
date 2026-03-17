@@ -1,5 +1,6 @@
 import { createEmptyStageData, type Size2D, type StageData, type StageGimmick, type StageGimmickKind } from '@shared/types'
 import { useCallback, useEffect, useRef } from 'react'
+import { createUnplacedGoalPosition, FAN_DEFAULT_SIZE, isGoalPlaced } from './stageEditorConstants'
 
 // ピクセル精度の当たり判定用アルファマスク
 type AlphaMask = { data: Uint8Array; width: number; height: number }
@@ -64,7 +65,7 @@ const toCanvasY = (stageY: number, stageHeight: number, canvasHeight: number): n
   (stageY / stageHeight) * canvasHeight
 
 const getGimmickSize = (gimmick: StageGimmick): Size2D =>
-  'size' in gimmick && gimmick.size ? (gimmick.size as Size2D) : { width: 240, height: 240 }
+  'size' in gimmick && gimmick.size ? gimmick.size : FAN_DEFAULT_SIZE
 
 const getMaskHit = (
   mask: AlphaMask | null | undefined,
@@ -209,8 +210,9 @@ const drawStagePreview = (
         break
       }
       case 'fan': {
-        const width = (gimmick.size?.width / stageWidth || 120 / stageWidth) * canvasWidth
-        const height = (gimmick.size?.height / stageHeight || 120 / stageHeight) * canvasHeight
+        const fanSize = getGimmickSize(gimmick)
+        const width = (fanSize.width / stageWidth) * canvasWidth
+        const height = (fanSize.height / stageHeight) * canvasHeight
         const fanImg = gimmickImages?.fan
         if (fanImg) {
           context.save()
@@ -458,7 +460,7 @@ export const useKAPLAY = ({
       })
       if (hasGimmickOverlap) return false
       const goalPos = stageData.goal.position
-      if (goalPos.x > 0 && goalMaskRef.current) {
+      if (isGoalPlaced(goalPos) && goalMaskRef.current) {
         const goalSize = stageData.goal.size
         if (pixelCollision(newMask, newGimmick.position.x, newGimmick.position.y, newSize.width, newSize.height, goalMaskRef.current, goalPos.x, goalPos.y, goalSize.width, goalSize.height)) return false
       }
@@ -496,7 +498,7 @@ export const useKAPLAY = ({
 
     // ゴールの判定
     const goalPos = stageData.goal.position
-    if (goalPos.x > -9000) {
+    if (isGoalPlaced(goalPos)) {
       const goalSize = stageData.goal.size
       if (
         stageX >= goalPos.x && stageX < goalPos.x + goalSize.width &&
@@ -506,7 +508,7 @@ export const useKAPLAY = ({
         if (hit) {
           latestStageDataRef.current = {
             ...stageData,
-            goal: { ...stageData.goal, position: { x: -9999, y: -9999 } },
+            goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
           }
           return {
             kind: 'gool',
@@ -558,7 +560,7 @@ export const useKAPLAY = ({
     const stageY = (canvasY / canvas.height) * stageData.world.height
 
     const goalPos = stageData.goal.position
-    if (goalPos.x > -9000) {
+    if (isGoalPlaced(goalPos)) {
       const goalSize = stageData.goal.size
       if (stageX >= goalPos.x && stageX < goalPos.x + goalSize.width &&
           stageY >= goalPos.y && stageY < goalPos.y + goalSize.height) {
@@ -588,7 +590,7 @@ export const useKAPLAY = ({
     if (id === 'gool') {
       latestStageDataRef.current = {
         ...stageData,
-        goal: { ...stageData.goal, position: { x: -9999, y: -9999 } },
+        goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
       }
     } else {
       latestStageDataRef.current = {
