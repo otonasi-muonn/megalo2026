@@ -122,6 +122,7 @@ const drawStagePreview = (
   mode: UseKAPLAYProps['mode'],
   frame: number,
   char: CharState,
+  windLine: WindLine | null,
 ) => {
   const { world, spawn, goal, gimmicks } = stageData
   const sw = world.width
@@ -253,6 +254,98 @@ const drawStagePreview = (
     context.arc(charCx + eyeOffsetX, charCy - charCr * 0.2, charCr * 0.2, 0, Math.PI * 2)
     context.fill()
   }
+
+  // 風ライン描画（残り時間に応じてフェードアウト）
+  if (windLine !== null && windLine.points.length >= 2) {
+    const elapsed = performance.now() - windLine.endTime
+    const alpha = Math.max(0, 1 - elapsed / 1500)
+    context.save()
+    context.globalAlpha = alpha
+    context.strokeStyle = '#7dd3fc'
+    context.lineWidth = 3
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+    context.setLineDash([6, 4])
+    context.beginPath()
+    context.moveTo(windLine.points[0].x, windLine.points[0].y)
+    for (let i = 1; i < windLine.points.length; i++) {
+      context.lineTo(windLine.points[i].x, windLine.points[i].y)
+    }
+    context.stroke()
+    context.restore()
+  }
+}
+
+// ──────────────────────────────────────────
+// スワイプ操作ユーティリティ
+// ──────────────────────────────────────────
+
+interface SwipeState {
+  points: { x: number; y: number }[]
+  startTime: number
+}
+
+/** キャンバス座標系でのスワイプ軌跡。スワイプ終了後1.5秒間有効 */
+interface WindLine {
+  /** キャンバス座標系の点列 */
+  points: { x: number; y: number }[]
+  /** スワイプ終了時刻（performance.now()） */
+  endTime: number
+  /** 風の力ベクトル（ステージ座標系） */
+  fx: number
+  fy: number
+}
+
+/**
+ * スワイプベクトル（キャンバス座標系）からステージ座標系での風の力を算出する。
+ *
+ * @param dx          キャンバス座標系でのX変位（px）
+ * @param dy          キャンバス座標系でのY変位（px）
+ * @param durationMs  スワイプにかかった時間（ms）
+ * @param canvasWidth  キャンバス幅（px）
+ * @param stageWidth  ステージ幅（ステージ座標）
+ * @param forceScale  ステージ設定の windForceScale
+ * @returns ステージ座標系での風の力ベクトル { fx, fy }
+ */
+const calcWindForce = (
+  dx: number,
+  dy: number,
+  durationMs: number,
+  canvasWidth: number,
+  stageWidth: number,
+  forceScale: number,
+): { fx: number; fy: number } => {
+  const durationSec = Math.max(durationMs / 1000, 0.016)
+  const scale = stageWidth / canvasWidth
+
+  // スワイプ速度（ステージ座標系 px/s）
+  const speedX = (dx / durationSec) * scale
+  const speedY = (dy / durationSec) * scale
+  const speed = Math.hypot(speedX, speedY)
+
+  // スワイプ距離（ステージ座標系 px）
+  const distX = dx * scale
+  const distY = dy * scale
+  const dist = Math.hypot(distX, distY)
+
+  // インパルス強度 = 速度 × 距離 の積を正規化し、二乗で非線形化
+  // → 遅く短いスワイプは弱く、速く長いスワイプは強く効く
+  const RAW_MAX_SPEED = 4000   // この速度で speed 成分が 1.0 になる基準値
+  const RAW_MAX_DIST  = 600    // この距離で dist 成分が 1.0 になる基準値
+  const normSpeed = Math.min(speed / RAW_MAX_SPEED, 1.0)
+  const normDist  = Math.min(dist  / RAW_MAX_DIST,  1.0)
+
+  // 速度と距離の積を二乗して感度差を拡大（0.0〜1.0 の範囲）
+  const strength = (normSpeed * normDist) ** 2
+
+  const MAX_IMPULSE = 2200 * forceScale
+  const impulse = strength * MAX_IMPULSE
+
+  // 方向は速度ベクトルから
+  const safeDenom = speed > 0 ? speed : 1
+  const fx = (speedX / safeDenom) * impulse * forceScale
+  const fy = (speedY / safeDenom) * impulse * forceScale
+  return { fx, fy }
 }
 
 // ──────────────────────────────────────────
@@ -266,6 +359,8 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
   // コールバックは最新参照を保持（useEffect の依存配列に含めずに済む）
   const onGameEndRef = useRef(onGameEnd)
   const onStageDataChangeRef = useRef(onStageDataChange)
+  // スワイプ軌跡と風の力。ゲームループ・描画から参照される
+  const windLineRef = useRef<WindLine | null>(null)
 
   useEffect(() => {
     onGameEndRef.current = onGameEnd
@@ -298,6 +393,9 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
     const stageData = latestStageDataRef.current
     const { spawn } = stageData
 
+    // 前回ゲームのスワイプ状態をリセット
+    windLineRef.current = null
+
     // キャラクター初期化（ステージ座標系）
     const char: CharState = {
       x: spawn.position.x,
@@ -320,6 +418,43 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       if (mode !== 'edit' && !collisionFired) {
         // 物理更新（重力・速度）
         const physics = latestStageDataRef.current.physics
+
+        // 風ライン当たり判定：キャラが風ラインに触れていたら力を加える
+        const windLine = windLineRef.current
+        if (windLine !== null) {
+          const elapsed = performance.now() - windLine.endTime
+          if (elapsed > 1500) {
+            // 1.5秒経過で消滅
+            windLineRef.current = null
+          } else {
+            // キャンバス座標系でのキャラ位置に変換して距離判定
+            const { world } = latestStageDataRef.current
+            const charCx = (char.x / world.width) * canvas.width
+            const charCy = (char.y / world.height) * canvas.height
+            const charCr = (char.radius / world.width) * canvas.width
+            // 風ラインの各セグメントとの最短距離を確認
+            const pts = windLine.points
+            let hit = false
+            for (let i = 0; i < pts.length - 1; i++) {
+              const ax = pts[i].x,   ay = pts[i].y
+              const bx = pts[i + 1].x, by = pts[i + 1].y
+              const abx = bx - ax, aby = by - ay
+              const lenSq = abx * abx + aby * aby
+              const t = lenSq > 0 ? Math.max(0, Math.min(1, ((charCx - ax) * abx + (charCy - ay) * aby) / lenSq)) : 0
+              const nearX = ax + t * abx, nearY = ay + t * aby
+              if (Math.hypot(charCx - nearX, charCy - nearY) < charCr + 6) {
+                hit = true
+                break
+              }
+            }
+            if (hit) {
+              const STEPS = 12
+              char.vx += windLine.fx / STEPS
+              char.vy += windLine.fy / STEPS
+            }
+          }
+        }
+
         char.vy += physics.gravity.y * DT * 60
         char.vx *= 1 - physics.airDrag
         char.vy *= 1 - physics.airDrag
@@ -337,7 +472,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
         if (collision !== 'none') {
           collisionFired = true
           // 最後のフレームを描画してからコールバックを呼ぶ
-          drawStagePreview(context, canvas.width, canvas.height, latestStageDataRef.current, mode, frame, char)
+          drawStagePreview(context, canvas.width, canvas.height, latestStageDataRef.current, mode, frame, char, windLineRef.current)
           onGameEndRef.current?.(collision === 'goal')
           return
         }
@@ -351,6 +486,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
         mode,
         frame,
         char,
+        windLineRef.current,
       )
       animationFrameId = window.requestAnimationFrame(tick)
     }
@@ -371,6 +507,99 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       gameInstanceRef.current = null
     }
   // mode が変わったときのみ再起動（stageData の変化は latestStageDataRef 経由で追従）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  // スワイプ操作（マウス・タッチ両対応）→ 風ラインを windLineRef に書き込む
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || mode === 'edit') return
+
+    let swipe: SwipeState | null = null
+
+    const onSwipeStart = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect()
+      swipe = {
+        points: [{ x: clientX - rect.left, y: clientY - rect.top }],
+        startTime: performance.now(),
+      }
+    }
+
+    const onSwipeMove = (clientX: number, clientY: number) => {
+      if (swipe === null) return
+      const rect = canvas.getBoundingClientRect()
+      const x = clientX - rect.left
+      const y = clientY - rect.top
+      const last = swipe.points[swipe.points.length - 1]
+      // 前の点から一定距離離れたら追加（点が密になりすぎるのを防ぐ）
+      if (Math.hypot(x - last.x, y - last.y) >= 4) {
+        swipe.points.push({ x, y })
+      }
+    }
+
+    const onSwipeEnd = (clientX: number, clientY: number) => {
+      if (swipe === null) return
+      const rect = canvas.getBoundingClientRect()
+      swipe.points.push({ x: clientX - rect.left, y: clientY - rect.top })
+      const pts = swipe.points
+      const durationMs = performance.now() - swipe.startTime
+      swipe = null
+
+      // 極端に短いスワイプ（タップ誤検知）は無視
+      const first = pts[0], last = pts[pts.length - 1]
+      const dx = last.x - first.x, dy = last.y - first.y
+      if (Math.hypot(dx, dy) < 8) return
+
+      const { world, physics } = latestStageDataRef.current
+      const { fx, fy } = calcWindForce(
+        dx,
+        dy,
+        durationMs,
+        canvas.width,
+        world.width,
+        physics.windForceScale,
+      )
+      windLineRef.current = { points: pts, endTime: performance.now(), fx, fy }
+    }
+
+    // ── マウスイベント ──
+    const handleMouseDown = (e: MouseEvent) => onSwipeStart(e.clientX, e.clientY)
+    const handleMouseMove = (e: MouseEvent) => onSwipeMove(e.clientX, e.clientY)
+    const handleMouseUp   = (e: MouseEvent) => onSwipeEnd(e.clientX, e.clientY)
+    const handleMouseLeave = () => { swipe = null }
+
+    // ── タッチイベント ──
+    const handleTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (t) onSwipeStart(t.clientX, t.clientY)
+    }
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (t) onSwipeMove(t.clientX, t.clientY)
+    }
+    const handleTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0]
+      if (t) onSwipeEnd(t.clientX, t.clientY)
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown)
+    canvas.addEventListener('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseup', handleMouseUp)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: true })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: true })
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleMouseDown)
+      canvas.removeEventListener('mousemove', handleMouseMove)
+      canvas.removeEventListener('mouseup', handleMouseUp)
+      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+    }
+  // mode が変わるたびに再登録
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
