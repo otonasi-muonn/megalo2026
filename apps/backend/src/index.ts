@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import type { StageData } from './types/stage'
+import type { StageData } from './types/stage.js'
 
 type GimmickKind = StageData['gimmicks'][number]['kind']
 
