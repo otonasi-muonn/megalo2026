@@ -87,7 +87,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
 
       const response = await apiPut<StageResponse>(`/api/stages/${stageId}`, {
         title: stage.title,
-        is_published: stage.is_published,
+        is_published: false,
         stage_data: exportStageData(),
       })
 

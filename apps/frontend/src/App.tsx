@@ -17,6 +17,9 @@ const normalizePathname = (pathname: string): string => {
   return pathname.replace(/\/+$/, '')
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 const getPathParam = (pathname: string, prefix: string): string | null => {
   if (!pathname.startsWith(prefix)) {
     return null
@@ -28,6 +31,39 @@ const getPathParam = (pathname: string, prefix: string): string | null => {
   }
 
   return decodeURIComponent(rawParam)
+}
+
+const getQueryParam = (search: string, key: string): string | null => {
+  const query = search.startsWith('?') ? search.slice(1) : search
+  if (!query) {
+    return null
+  }
+
+  for (const pair of query.split('&')) {
+    if (!pair) {
+      continue
+    }
+    const separator = pair.indexOf('=')
+    const rawKey = separator >= 0 ? pair.slice(0, separator) : pair
+    if (rawKey !== key) {
+      continue
+    }
+    const rawValue = separator >= 0 ? pair.slice(separator + 1) : ''
+    try {
+      return decodeURIComponent(rawValue.replace(/\+/g, ' '))
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+const parseResultQuery = (search: string): { stageId?: string; cleared: boolean } => {
+  const stageIdRaw = getQueryParam(search, 'stageId')
+  const stageId = stageIdRaw && UUID_PATTERN.test(stageIdRaw) ? stageIdRaw : undefined
+  const cleared = getQueryParam(search, 'cleared') === 'true'
+  return { stageId, cleared }
 }
 
 const isRouteActive = (currentPathname: string, path: string): boolean => {
@@ -44,10 +80,7 @@ function App() {
   useEffect(() => subscribeLocation(() => setLocationState(getCurrentLocation())), [])
 
   const pathname = normalizePathname(locationState.pathname)
-  const searchParams = useMemo(
-    () => new URLSearchParams(locationState.search),
-    [locationState.search],
-  )
+  const resultQuery = useMemo(() => parseResultQuery(locationState.search), [locationState.search])
 
   const editStageId = getPathParam(pathname, '/edit/')
   const playStageId = getPathParam(pathname, '/play/')
@@ -76,8 +109,8 @@ function App() {
     if (pathname === '/result') {
       return (
         <ResultPage
-          stageId={searchParams.get('stageId') ?? undefined}
-          cleared={searchParams.get('cleared') === 'true'}
+          stageId={resultQuery.stageId}
+          cleared={resultQuery.cleared}
         />
       )
     }

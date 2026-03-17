@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
 import type {
@@ -22,6 +22,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
   const [isTogglingLike, setIsTogglingLike] = useState(false)
   const [likeMessage, setLikeMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const finishingRef = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -68,14 +69,15 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
   }
 
   const handleFinishPlay = useCallback((cleared: boolean) => {
-    // バックグラウンドでプレイログを送信してから結果画面へ遷移（仕様書 §3 結果画面フロー）
-    apiPost(`/api/stages/${stageId}/play_logs`, { is_cleared: cleared })
-      .catch(() => {
-        // ログ送信失敗はゲーム体験に影響させない（サイレントに握りつぶす）
-      })
-      .finally(() => {
-        navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
-      })
+    if (finishingRef.current) {
+      return
+    }
+    finishingRef.current = true
+    navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
+    // 結果遷移を優先し、ログはバックグラウンド送信する
+    void apiPost(`/api/stages/${stageId}/play_logs`, { is_cleared: cleared }).catch(() => {
+      // ログ送信失敗はゲーム体験に影響させない
+    })
   }, [stageId])
 
   const { canvasRef } = useKAPLAY({
