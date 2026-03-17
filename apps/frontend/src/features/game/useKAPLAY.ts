@@ -1,272 +1,42 @@
-import { createEmptyStageData, type Size2D, type StageData, type StageGimmick, type StageGimmickKind } from '@shared/types'
+import { createEmptyStageData, type StageData, type StageGimmick, type StageGimmickKind } from '@shared/types'
 import { useCallback, useEffect, useRef } from 'react'
-import { createUnplacedGoalPosition, FAN_DEFAULT_SIZE, isGoalPlaced } from './stageEditorConstants'
-
-// ピクセル精度の当たり判定用アルファマスク
-type AlphaMask = { data: Uint8Array; width: number; height: number }
-
-const buildAlphaMask = (img: HTMLImageElement): AlphaMask => {
-  const offscreen = document.createElement('canvas')
-  offscreen.width = img.naturalWidth
-  offscreen.height = img.naturalHeight
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const ctx = offscreen.getContext('2d')!
-  ctx.drawImage(img, 0, 0)
-  const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height)
-  const alpha = new Uint8Array(img.naturalWidth * img.naturalHeight)
-  for (let i = 0; i < alpha.length; i++) {
-    alpha[i] = imageData.data[i * 4 + 3]
-  }
-  return { data: alpha, width: img.naturalWidth, height: img.naturalHeight }
-}
-
-// ステージ座標系でピクセル単位の重なり判定（透明部分を除外）
-const pixelCollision = (
-  mask1: AlphaMask, pos1x: number, pos1y: number, size1w: number, size1h: number,
-  mask2: AlphaMask, pos2x: number, pos2y: number, size2w: number, size2h: number,
-): boolean => {
-  const ix = Math.max(pos1x, pos2x)
-  const iy = Math.max(pos1y, pos2y)
-  const iRight = Math.min(pos1x + size1w, pos2x + size2w)
-  const iBottom = Math.min(pos1y + size1h, pos2y + size2h)
-  if (ix >= iRight || iy >= iBottom) return false
-  // 4ステージ座標刻みでサンプリング（精度とパフォーマンスのバランス）
-  const step = 4
-  for (let sy = iy; sy < iBottom; sy += step) {
-    for (let sx = ix; sx < iRight; sx += step) {
-      const px1 = Math.min(Math.floor(((sx - pos1x) / size1w) * mask1.width), mask1.width - 1)
-      const py1 = Math.min(Math.floor(((sy - pos1y) / size1h) * mask1.height), mask1.height - 1)
-      if (mask1.data[py1 * mask1.width + px1] === 0) continue
-      const px2 = Math.min(Math.floor(((sx - pos2x) / size2w) * mask2.width), mask2.width - 1)
-      const py2 = Math.min(Math.floor(((sy - pos2y) / size2h) * mask2.height), mask2.height - 1)
-      if (mask2.data[py2 * mask2.width + px2] > 0) return true
-    }
-  }
-  return false
-}
-
-interface UseKAPLAYProps {
-  initialStageData?: StageData
-  mode: 'play' | 'edit' | 'test'
-  onGameEnd?: (isCleared: boolean) => void
-}
-
-interface MockKaplayInstance {
-  destroy: () => void
-}
-
-type GimmickImageMap = Partial<Record<StageGimmickKind, HTMLImageElement>>
-type PickedItem = { kind: string; stageX: number; stageY: number; rotationDeg: number }
-
-const toCanvasX = (stageX: number, stageWidth: number, canvasWidth: number): number =>
-  (stageX / stageWidth) * canvasWidth
-
-const toCanvasY = (stageY: number, stageHeight: number, canvasHeight: number): number =>
-  (stageY / stageHeight) * canvasHeight
-
-const getGimmickSize = (gimmick: StageGimmick): Size2D =>
-  'size' in gimmick && gimmick.size ? gimmick.size : FAN_DEFAULT_SIZE
-
-const getMaskHit = (
-  mask: AlphaMask | null | undefined,
-  localX: number,
-  localY: number,
-  width: number,
-  height: number,
-): boolean => {
-  if (!mask) {
-    return true
-  }
-  const x = Math.min(Math.max(Math.floor((localX / width) * mask.width), 0), mask.width - 1)
-  const y = Math.min(Math.max(Math.floor((localY / height) * mask.height), 0), mask.height - 1)
-  return mask.data[y * mask.width + x] > 0
-}
-
-const toItemKind = (kind: StageGimmickKind): string | null => {
-  switch (kind) {
-    case 'spring':
-      return 'bane'
-    case 'wall':
-      return 'block'
-    case 'fan':
-      return 'souhuuki'
-    case 'spike':
-      return 'toge'
-    default:
-      return null
-  }
-}
-
-const drawStagePreview = (
-  context: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-  stageData: StageData,
-  mode: UseKAPLAYProps['mode'],
-  frame: number,
-  playerImage?: HTMLImageElement | null,
-  goalImage?: HTMLImageElement | null,
-  gimmickImages?: GimmickImageMap,
-) => {
-  const stageWidth = stageData.world.width
-  const stageHeight = stageData.world.height
-
-  if (mode === 'play') {
-    context.fillStyle = '#0f172a'
-    context.fillRect(0, 0, canvasWidth, canvasHeight)
-    context.fillStyle = '#1f2937'
-    context.fillRect(0, 0, canvasWidth, canvasHeight)
-  }
-
-  context.fillStyle = '#93c5fd'
-  const spawnX = toCanvasX(stageData.spawn.position.x, stageWidth, canvasWidth)
-  const spawnY = toCanvasY(stageData.spawn.position.y, stageHeight, canvasHeight)
-  if (playerImage) {
-    const size = 48
-    context.drawImage(playerImage, spawnX - size / 2, spawnY - size / 2 + 20, size, size)
-  } else {
-    context.beginPath()
-    context.arc(spawnX, spawnY + 20, 10, 0, Math.PI * 2)
-    context.fill()
-  }
-
-  const goalX = toCanvasX(stageData.goal.position.x, stageWidth, canvasWidth)
-  const goalY = toCanvasY(stageData.goal.position.y, stageHeight, canvasHeight)
-  const goalW = (stageData.goal.size.width / stageWidth) * canvasWidth
-  const goalH = (stageData.goal.size.height / stageHeight) * canvasHeight
-  const goalRotDeg = stageData.goal.rotationDeg ?? 0
-  if (goalImage && goalImage.complete && goalImage.naturalWidth > 0) {
-    context.save()
-    context.translate(goalX + goalW / 2, goalY + goalH / 2)
-    context.rotate((goalRotDeg * Math.PI) / 180)
-    context.drawImage(goalImage, -goalW / 2, -goalH / 2, goalW, goalH)
-    context.restore()
-  }
-
-  for (const gimmick of stageData.gimmicks) {
-    const x = toCanvasX(gimmick.position.x, stageWidth, canvasWidth)
-    const y = toCanvasY(gimmick.position.y, stageHeight, canvasHeight)
-    const rotDeg = gimmick.rotationDeg ?? 0
-
-    switch (gimmick.kind) {
-      case 'wall': {
-        const width = (gimmick.size.width / stageWidth) * canvasWidth
-        const height = (gimmick.size.height / stageHeight) * canvasHeight
-        const wallImg = gimmickImages?.wall
-        if (wallImg) {
-          context.save()
-          context.translate(x + width / 2, y + height / 2)
-          context.rotate((rotDeg * Math.PI) / 180)
-          context.drawImage(wallImg, -width / 2, -height / 2, width, height)
-          context.restore()
-        } else {
-          context.fillStyle = '#9ca3af'
-          context.fillRect(x, y, width, height)
-        }
-        break
-      }
-      case 'spike': {
-        const width = (gimmick.size.width / stageWidth) * canvasWidth
-        const height = (gimmick.size.height / stageHeight) * canvasHeight
-        const spikeImg = gimmickImages?.spike
-        if (spikeImg) {
-          context.save()
-          context.translate(x + width / 2, y + height / 2)
-          context.rotate((rotDeg * Math.PI) / 180)
-          context.drawImage(spikeImg, -width / 2, -height / 2, width, height)
-          context.restore()
-        } else {
-          context.fillStyle = '#ef4444'
-          context.beginPath()
-          context.moveTo(x, y + height)
-          context.lineTo(x + width / 2, y)
-          context.lineTo(x + width, y + height)
-          context.closePath()
-          context.fill()
-        }
-        break
-      }
-      case 'spring': {
-        const width = (gimmick.size.width / stageWidth) * canvasWidth
-        const height = (gimmick.size.height / stageHeight) * canvasHeight
-        const springImg = gimmickImages?.spring
-        if (springImg) {
-          context.save()
-          context.translate(x + width / 2, y + height / 2)
-          context.rotate((rotDeg * Math.PI) / 180)
-          context.drawImage(springImg, -width / 2, -height / 2, width, height)
-          context.restore()
-        } else {
-          context.strokeStyle = '#f59e0b'
-          context.lineWidth = 2
-          context.beginPath()
-          context.moveTo(x, y + height)
-          context.lineTo(x + width * 0.25, y)
-          context.lineTo(x + width * 0.5, y + height)
-          context.lineTo(x + width * 0.75, y)
-          context.lineTo(x + width, y + height)
-          context.stroke()
-        }
-        break
-      }
-      case 'fan': {
-        const fanSize = getGimmickSize(gimmick)
-        const width = (fanSize.width / stageWidth) * canvasWidth
-        const height = (fanSize.height / stageHeight) * canvasHeight
-        const fanImg = gimmickImages?.fan
-        if (fanImg) {
-          context.save()
-          context.translate(x + width / 2, y + height / 2)
-          context.rotate((rotDeg * Math.PI) / 180)
-          context.drawImage(fanImg, -width / 2, -height / 2, width, height)
-          context.restore()
-        } else {
-          context.strokeStyle = '#60a5fa'
-          context.lineWidth = 2
-          context.beginPath()
-          context.moveTo(x, y)
-          context.lineTo(x + 18, y)
-          context.stroke()
-          const pulse = 12 + Math.sin(frame / 12) * 4
-          context.strokeStyle = '#93c5fd'
-          context.beginPath()
-          context.moveTo(x + 18, y)
-          context.lineTo(x + 18 + pulse, y)
-          context.stroke()
-        }
-        break
-      }
-      case 'wave': {
-        context.strokeStyle = '#a78bfa'
-        context.lineWidth = 2
-        context.beginPath()
-        for (let i = 0; i <= 32; i += 1) {
-          const progress = i / 32
-          const waveX = x + progress * 120
-          const waveY = y + Math.sin(progress * Math.PI * 2 + frame * 0.08) * 8
-          if (i === 0) {
-            context.moveTo(waveX, waveY)
-          } else {
-            context.lineTo(waveX, waveY)
-          }
-        }
-        context.stroke()
-        break
-      }
-    }
-  }
-}
+import { createUnplacedGoalPosition, isGoalPlaced } from './stageEditorConstants'
+import { buildAlphaMask, getGimmickSize, getMaskHit, pixelCollision, toItemKind } from './useKAPLAY.canvas'
+import { calcWindForce, detectCollision, isCharTouchingWindLine, WIND_APPLY_STEPS, WIND_MAX_LIFETIME_MS } from './useKAPLAY.physics'
+import { drawStagePreview } from './useKAPLAY.renderer'
+import type {
+  AlphaMask,
+  CharState,
+  GimmickImageMap,
+  MockKaplayInstance,
+  PickedItem,
+  SwipeState,
+  UseKAPLAYProps,
+  WindLine,
+} from './useKAPLAY.types'
 
 export const useKAPLAY = ({
   initialStageData,
   mode,
   onGameEnd,
+  onStageDataChange,
 }: UseKAPLAYProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameInstanceRef = useRef<MockKaplayInstance | null>(null)
   const latestStageDataRef = useRef<StageData>(initialStageData ?? createEmptyStageData())
   const gimmickMasksRef = useRef<Partial<Record<StageGimmickKind, AlphaMask>>>({})
   const goalMaskRef = useRef<AlphaMask | null>(null)
+  const onGameEndRef = useRef(onGameEnd)
+  const onStageDataChangeRef = useRef(onStageDataChange)
+  const windLineRef = useRef<WindLine | null>(null)
+
+  useEffect(() => {
+    onGameEndRef.current = onGameEnd
+  }, [onGameEnd])
+
+  useEffect(() => {
+    onStageDataChangeRef.current = onStageDataChange
+  }, [onStageDataChange])
 
   useEffect(() => {
     latestStageDataRef.current = initialStageData ?? createEmptyStageData()
@@ -274,17 +44,23 @@ export const useKAPLAY = ({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) {
-      return
-    }
+    if (!canvas) return
 
     const context = canvas.getContext('2d')
-    if (!context) {
-      return
-    }
+    if (!context) return
 
-    let frame = 0
-    let animationFrameId: number | null = null
+    const stageData = latestStageDataRef.current
+    const { spawn } = stageData
+
+    windLineRef.current = null
+
+    const char: CharState = {
+      x: spawn.position.x,
+      y: spawn.position.y,
+      vx: mode === 'edit' ? 0 : 120,
+      vy: 0,
+      radius: 24,
+    }
 
     const playerImage = new Image()
     let playerImageLoaded = false
@@ -317,9 +93,89 @@ export const useKAPLAY = ({
       }
     }
 
-    const render = () => {
+    const fps = 60
+    const dt = 1 / fps
+    let collisionFired = false
+    let frame = 0
+    let animationFrameId: number | null = null
+
+    const tick = () => {
       frame += 1
-      context.clearRect(0, 0, canvas.width, canvas.height)
+
+      if (mode !== 'edit' && !collisionFired) {
+        const latestStageData = latestStageDataRef.current
+        const physics = latestStageData.physics
+        const windLine = windLineRef.current
+
+        if (windLine !== null) {
+          const elapsed = performance.now() - windLine.endTime
+          if (elapsed > WIND_MAX_LIFETIME_MS || windLine.remainingSteps <= 0) {
+            windLineRef.current = null
+          } else if (
+            isCharTouchingWindLine(
+              char,
+              latestStageData.world.width,
+              latestStageData.world.height,
+              canvas.width,
+              canvas.height,
+              windLine.points,
+            )
+          ) {
+            const retention = 1 - windLine.decay
+            const appliedIndex = WIND_APPLY_STEPS - windLine.remainingSteps
+            const stepWeight = retention ** appliedIndex
+            const stepScale = stepWeight / windLine.totalWeight
+            char.vx += windLine.fx * stepScale
+            char.vy += windLine.fy * stepScale
+            windLine.remainingSteps -= 1
+            if (windLine.remainingSteps <= 0) {
+              windLineRef.current = null
+            }
+          }
+        }
+
+        char.vy += physics.gravity.y * dt * 60
+        char.vx *= 1 - physics.airDrag
+        char.vy *= 1 - physics.airDrag
+        char.x += char.vx * dt
+        char.y += char.vy * dt
+
+        if (char.y - char.radius < 0) {
+          char.y = char.radius
+          char.vy = Math.abs(char.vy) * 0.5
+        }
+
+        const collision = detectCollision(char, latestStageData)
+        if (collision !== 'none') {
+          collisionFired = true
+          drawStagePreview(
+            context,
+            canvas.width,
+            canvas.height,
+            latestStageData,
+            mode,
+            frame,
+            char,
+            windLineRef.current,
+            {
+              playerImage: playerImageLoaded ? playerImage : null,
+              goalImage: goalImageLoaded ? goalImage : null,
+              gimmickImages,
+            },
+          )
+          onGameEndRef.current?.(collision === 'goal')
+          return
+        }
+      }
+
+      if (mode === 'edit') {
+        const latestStageData = latestStageDataRef.current
+        char.x = latestStageData.spawn.position.x
+        char.y = latestStageData.spawn.position.y
+        char.vx = 0
+        char.vy = 0
+      }
+
       drawStagePreview(
         context,
         canvas.width,
@@ -327,14 +183,19 @@ export const useKAPLAY = ({
         latestStageDataRef.current,
         mode,
         frame,
-        playerImageLoaded ? playerImage : null,
-        goalImageLoaded ? goalImage : null,
-        gimmickImages,
+        char,
+        windLineRef.current,
+        {
+          playerImage: playerImageLoaded ? playerImage : null,
+          goalImage: goalImageLoaded ? goalImage : null,
+          gimmickImages,
+        },
       )
-      animationFrameId = window.requestAnimationFrame(render)
+
+      animationFrameId = window.requestAnimationFrame(tick)
     }
 
-    render()
+    tick()
 
     gameInstanceRef.current = {
       destroy: () => {
@@ -349,36 +210,142 @@ export const useKAPLAY = ({
       gameInstanceRef.current?.destroy()
       gameInstanceRef.current = null
     }
-  }, [mode])
+  }, [mode, initialStageData])
 
   useEffect(() => {
-    if (!onGameEnd) {
-      return
+    const canvas = canvasRef.current
+    if (!canvas || mode === 'edit') return
+
+    let swipe: SwipeState | null = null
+
+    const onSwipeStart = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect()
+      swipe = {
+        points: [{ x: clientX - rect.left, y: clientY - rect.top }],
+        startTime: performance.now(),
+      }
     }
+
+    const onSwipeMove = (clientX: number, clientY: number) => {
+      if (swipe === null) return
+      const rect = canvas.getBoundingClientRect()
+      const x = clientX - rect.left
+      const y = clientY - rect.top
+      const last = swipe.points[swipe.points.length - 1]
+      if (Math.hypot(x - last.x, y - last.y) >= 4) {
+        swipe.points.push({ x, y })
+      }
+    }
+
+    const onSwipeEnd = (clientX: number, clientY: number) => {
+      if (swipe === null) return
+      const rect = canvas.getBoundingClientRect()
+      swipe.points.push({ x: clientX - rect.left, y: clientY - rect.top })
+      const points = swipe.points
+      const durationMs = performance.now() - swipe.startTime
+      swipe = null
+
+      const first = points[0]
+      const last = points[points.length - 1]
+      const dx = last.x - first.x
+      const dy = last.y - first.y
+      if (Math.hypot(dx, dy) < 8) return
+
+      const { world, physics } = latestStageDataRef.current
+      const { fx, fy } = calcWindForce(
+        dx,
+        dy,
+        durationMs,
+        canvas.width,
+        world.width,
+        physics.windForceScale,
+      )
+      const decay = Math.max(0, Math.min(0.95, physics.windDecay))
+      const retention = 1 - decay
+      const totalWeight = retention === 1
+        ? WIND_APPLY_STEPS
+        : (1 - retention ** WIND_APPLY_STEPS) / (1 - retention)
+
+      windLineRef.current = {
+        points,
+        endTime: performance.now(),
+        fx,
+        fy,
+        remainingSteps: WIND_APPLY_STEPS,
+        decay,
+        totalWeight,
+      }
+    }
+
+    const handleMouseDown = (event: MouseEvent) => onSwipeStart(event.clientX, event.clientY)
+    const handleMouseMove = (event: MouseEvent) => onSwipeMove(event.clientX, event.clientY)
+    const handleMouseUp = (event: MouseEvent) => onSwipeEnd(event.clientX, event.clientY)
+    const handleMouseLeave = () => {
+      swipe = null
+    }
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (touch) onSwipeStart(touch.clientX, touch.clientY)
+    }
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (touch) onSwipeMove(touch.clientX, touch.clientY)
+    }
+    const handleTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0]
+      if (touch) onSwipeEnd(touch.clientX, touch.clientY)
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown)
+    canvas.addEventListener('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseup', handleMouseUp)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: true })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: true })
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleMouseDown)
+      canvas.removeEventListener('mousemove', handleMouseMove)
+      canvas.removeEventListener('mouseup', handleMouseUp)
+      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [mode, initialStageData])
+
+  useEffect(() => {
+    if (mode !== 'play' && mode !== 'test') return
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === 'c') {
-        onGameEnd(true)
-      }
-      if (event.key.toLowerCase() === 'f') {
-        onGameEnd(false)
+        onGameEndRef.current?.(true)
+      } else if (event.key.toLowerCase() === 'f') {
+        onGameEndRef.current?.(false)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onGameEnd])
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [mode])
+
+  const setStageData = useCallback((nextStageData: StageData) => {
+    latestStageDataRef.current = nextStageData
+    onStageDataChangeRef.current?.()
+  }, [])
 
   const exportStageData = useCallback((): StageData => latestStageDataRef.current, [])
 
   const placeItemAtStage = useCallback((itemKind: string, stageX: number, stageY: number, rotationDeg?: number): boolean => {
     const stageData = latestStageDataRef.current
 
-    // play.png（プレイヤー）の当たり判定領域: スポーン位置を中心に約120x120程度（ステージ座標）
-    // キャンバス48pxをステージ座標に変換して計算
     const playerSize = 120
     const spawnPos = stageData.spawn.position
-    const spawnMargin = stageData.world.gridSize * 2  // マス2つ分
+    const spawnMargin = stageData.world.gridSize * 2
     const playerMinX = spawnPos.x - playerSize / 2 - spawnMargin
     const playerMaxX = spawnPos.x + playerSize / 2 + spawnMargin
     const playerMinY = spawnPos.y - playerSize / 2 - spawnMargin
@@ -389,22 +356,39 @@ export const useKAPLAY = ({
       const newH = 180
       const posX = stageX - newW / 2
       const posY = stageY - newH / 2
-      // play.pngの周囲マス2つ分は配置不可
-      if (posX < playerMaxX && posX + newW > playerMinX &&
-          posY < playerMaxY && posY + newH > playerMinY) {
+
+      if (
+        posX < playerMaxX &&
+        posX + newW > playerMinX &&
+        posY < playerMaxY &&
+        posY + newH > playerMinY
+      ) {
         return false
       }
+
       const goalMask = goalMaskRef.current
       if (goalMask) {
-        const hasOverlap = stageData.gimmicks.some((g) => {
-          const gMask = gimmickMasksRef.current[g.kind]
-          if (!gMask) return false
-          const gSize = getGimmickSize(g)
-          return pixelCollision(goalMask, posX, posY, newW, newH, gMask, g.position.x, g.position.y, gSize.width, gSize.height)
+        const hasOverlap = stageData.gimmicks.some((gimmick) => {
+          const gimmickMask = gimmickMasksRef.current[gimmick.kind]
+          if (!gimmickMask) return false
+          const gimmickSize = getGimmickSize(gimmick)
+          return pixelCollision(
+            goalMask,
+            posX,
+            posY,
+            newW,
+            newH,
+            gimmickMask,
+            gimmick.position.x,
+            gimmick.position.y,
+            gimmickSize.width,
+            gimmickSize.height,
+          )
         })
         if (hasOverlap) return false
       }
-      latestStageDataRef.current = {
+
+      setStageData({
         ...stageData,
         goal: {
           ...stageData.goal,
@@ -412,7 +396,7 @@ export const useKAPLAY = ({
           size: { width: newW, height: newH },
           rotationDeg: rotationDeg ?? 0,
         },
-      }
+      })
       return true
     }
 
@@ -443,35 +427,67 @@ export const useKAPLAY = ({
         return false
     }
 
-    // ピクセル精度の重なり判定（透明部分を除外）
     const newSize = getGimmickSize(newGimmick)
-    // play.pngの周囲マス2つ分は配置不可
-    if (newGimmick.position.x < playerMaxX && newGimmick.position.x + newSize.width > playerMinX &&
-        newGimmick.position.y < playerMaxY && newGimmick.position.y + newSize.height > playerMinY) {
+
+    if (
+      newGimmick.position.x < playerMaxX &&
+      newGimmick.position.x + newSize.width > playerMinX &&
+      newGimmick.position.y < playerMaxY &&
+      newGimmick.position.y + newSize.height > playerMinY
+    ) {
       return false
     }
+
     const newMask = gimmickMasksRef.current[kind]
     if (newMask) {
-      const hasGimmickOverlap = stageData.gimmicks.some((g) => {
-        const gMask = gimmickMasksRef.current[g.kind]
-        if (!gMask) return false
-        const gSize = getGimmickSize(g)
-        return pixelCollision(newMask, newGimmick.position.x, newGimmick.position.y, newSize.width, newSize.height, gMask, g.position.x, g.position.y, gSize.width, gSize.height)
+      const hasGimmickOverlap = stageData.gimmicks.some((gimmick) => {
+        const gimmickMask = gimmickMasksRef.current[gimmick.kind]
+        if (!gimmickMask) return false
+        const gimmickSize = getGimmickSize(gimmick)
+        return pixelCollision(
+          newMask,
+          newGimmick.position.x,
+          newGimmick.position.y,
+          newSize.width,
+          newSize.height,
+          gimmickMask,
+          gimmick.position.x,
+          gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
       })
       if (hasGimmickOverlap) return false
+
       const goalPos = stageData.goal.position
       if (isGoalPlaced(goalPos) && goalMaskRef.current) {
         const goalSize = stageData.goal.size
-        if (pixelCollision(newMask, newGimmick.position.x, newGimmick.position.y, newSize.width, newSize.height, goalMaskRef.current, goalPos.x, goalPos.y, goalSize.width, goalSize.height)) return false
+        if (
+          pixelCollision(
+            newMask,
+            newGimmick.position.x,
+            newGimmick.position.y,
+            newSize.width,
+            newSize.height,
+            goalMaskRef.current,
+            goalPos.x,
+            goalPos.y,
+            goalSize.width,
+            goalSize.height,
+          )
+        ) {
+          return false
+        }
       }
     }
 
-    latestStageDataRef.current = {
+    setStageData({
       ...stageData,
       gimmicks: [...stageData.gimmicks, newGimmick],
-    }
+    })
+
     return true
-  }, [])
+  }, [setStageData])
 
   const addItem = useCallback((itemKind: string, canvasX: number, canvasY: number, rotationDeg?: number) => {
     const canvas = canvasRef.current
@@ -483,11 +499,10 @@ export const useKAPLAY = ({
     return placeItemAtStage(itemKind, stageX, stageY, rotationDeg)
   }, [placeItemAtStage])
 
-  const addItemAtStage = useCallback((itemKind: string, stageX: number, stageY: number, rotationDeg?: number) => {
-    return placeItemAtStage(itemKind, stageX, stageY, rotationDeg)
-  }, [placeItemAtStage])
+  const addItemAtStage = useCallback((itemKind: string, stageX: number, stageY: number, rotationDeg?: number) => (
+    placeItemAtStage(itemKind, stageX, stageY, rotationDeg)
+  ), [placeItemAtStage])
 
-  // キャンバス座標でヒットしたアイテムを取り外して返す（透明部分は除外）
   const pickItemAt = useCallback((canvasX: number, canvasY: number): PickedItem | null => {
     const canvas = canvasRef.current
     if (!canvas) return null
@@ -496,20 +511,21 @@ export const useKAPLAY = ({
     const stageX = (canvasX / canvas.width) * stageData.world.width
     const stageY = (canvasY / canvas.height) * stageData.world.height
 
-    // ゴールの判定
     const goalPos = stageData.goal.position
     if (isGoalPlaced(goalPos)) {
       const goalSize = stageData.goal.size
       if (
-        stageX >= goalPos.x && stageX < goalPos.x + goalSize.width &&
-        stageY >= goalPos.y && stageY < goalPos.y + goalSize.height
+        stageX >= goalPos.x &&
+        stageX < goalPos.x + goalSize.width &&
+        stageY >= goalPos.y &&
+        stageY < goalPos.y + goalSize.height
       ) {
         const hit = getMaskHit(goalMaskRef.current, stageX - goalPos.x, stageY - goalPos.y, goalSize.width, goalSize.height)
         if (hit) {
-          latestStageDataRef.current = {
+          setStageData({
             ...stageData,
             goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
-          }
+          })
           return {
             kind: 'gool',
             stageX: goalPos.x + goalSize.width / 2,
@@ -520,41 +536,48 @@ export const useKAPLAY = ({
       }
     }
 
-    // ギミックの判定（後ろから検索して上に重なっているものを優先）
     const gimmicks = stageData.gimmicks
-    for (let i = gimmicks.length - 1; i >= 0; i--) {
-      const g = gimmicks[i]
-      const gSize = getGimmickSize(g)
+    for (let i = gimmicks.length - 1; i >= 0; i -= 1) {
+      const gimmick = gimmicks[i]
+      const gimmickSize = getGimmickSize(gimmick)
       if (
-        stageX >= g.position.x && stageX < g.position.x + gSize.width &&
-        stageY >= g.position.y && stageY < g.position.y + gSize.height
+        stageX >= gimmick.position.x &&
+        stageX < gimmick.position.x + gimmickSize.width &&
+        stageY >= gimmick.position.y &&
+        stageY < gimmick.position.y + gimmickSize.height
       ) {
-        const hit = getMaskHit(gimmickMasksRef.current[g.kind], stageX - g.position.x, stageY - g.position.y, gSize.width, gSize.height)
+        const hit = getMaskHit(
+          gimmickMasksRef.current[gimmick.kind],
+          stageX - gimmick.position.x,
+          stageY - gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
         if (hit) {
-          const itemKind = toItemKind(g.kind)
-          if (!itemKind) {
-            return null
-          }
-          latestStageDataRef.current = {
+          const itemKind = toItemKind(gimmick.kind)
+          if (!itemKind) return null
+
+          setStageData({
             ...stageData,
             gimmicks: gimmicks.filter((_, idx) => idx !== i),
-          }
+          })
           return {
             kind: itemKind,
-            stageX: g.position.x + gSize.width / 2,
-            stageY: g.position.y + gSize.height / 2,
-            rotationDeg: g.rotationDeg ?? 0,
+            stageX: gimmick.position.x + gimmickSize.width / 2,
+            stageY: gimmick.position.y + gimmickSize.height / 2,
+            rotationDeg: gimmick.rotationDeg ?? 0,
           }
         }
       }
     }
-    return null
-  }, [])
 
-  // アイテムの情報を返すだけで取り外しはしない（✕ボタン表示用）
+    return null
+  }, [setStageData])
+
   const getItemAt = useCallback((canvasX: number, canvasY: number): { id: string; kind: string; stageX: number; stageY: number; stageW: number; stageH: number; rotationDeg: number } | null => {
     const canvas = canvasRef.current
     if (!canvas) return null
+
     const stageData = latestStageDataRef.current
     const stageX = (canvasX / canvas.width) * stageData.world.width
     const stageY = (canvasY / canvas.height) * stageData.world.height
@@ -562,66 +585,112 @@ export const useKAPLAY = ({
     const goalPos = stageData.goal.position
     if (isGoalPlaced(goalPos)) {
       const goalSize = stageData.goal.size
-      if (stageX >= goalPos.x && stageX < goalPos.x + goalSize.width &&
-          stageY >= goalPos.y && stageY < goalPos.y + goalSize.height) {
-        if (getMaskHit(goalMaskRef.current, stageX - goalPos.x, stageY - goalPos.y, goalSize.width, goalSize.height)) {
-          return { id: 'gool', kind: 'gool', stageX: goalPos.x, stageY: goalPos.y, stageW: goalSize.width, stageH: goalSize.height, rotationDeg: stageData.goal.rotationDeg ?? 0 }
+      if (
+        stageX >= goalPos.x &&
+        stageX < goalPos.x + goalSize.width &&
+        stageY >= goalPos.y &&
+        stageY < goalPos.y + goalSize.height &&
+        getMaskHit(goalMaskRef.current, stageX - goalPos.x, stageY - goalPos.y, goalSize.width, goalSize.height)
+      ) {
+        return {
+          id: 'gool',
+          kind: 'gool',
+          stageX: goalPos.x,
+          stageY: goalPos.y,
+          stageW: goalSize.width,
+          stageH: goalSize.height,
+          rotationDeg: stageData.goal.rotationDeg ?? 0,
         }
       }
     }
 
     const gimmicks = stageData.gimmicks
-    for (let i = gimmicks.length - 1; i >= 0; i--) {
-      const g = gimmicks[i]
-      const gSize = getGimmickSize(g)
-      if (stageX >= g.position.x && stageX < g.position.x + gSize.width &&
-          stageY >= g.position.y && stageY < g.position.y + gSize.height) {
-        if (getMaskHit(gimmickMasksRef.current[g.kind], stageX - g.position.x, stageY - g.position.y, gSize.width, gSize.height)) {
-          return { id: g.id, kind: toItemKind(g.kind) ?? g.kind, stageX: g.position.x, stageY: g.position.y, stageW: gSize.width, stageH: gSize.height, rotationDeg: g.rotationDeg ?? 0 }
+    for (let i = gimmicks.length - 1; i >= 0; i -= 1) {
+      const gimmick = gimmicks[i]
+      const gimmickSize = getGimmickSize(gimmick)
+      if (
+        stageX >= gimmick.position.x &&
+        stageX < gimmick.position.x + gimmickSize.width &&
+        stageY >= gimmick.position.y &&
+        stageY < gimmick.position.y + gimmickSize.height &&
+        getMaskHit(
+          gimmickMasksRef.current[gimmick.kind],
+          stageX - gimmick.position.x,
+          stageY - gimmick.position.y,
+          gimmickSize.width,
+          gimmickSize.height,
+        )
+      ) {
+        return {
+          id: gimmick.id,
+          kind: toItemKind(gimmick.kind) ?? gimmick.kind,
+          stageX: gimmick.position.x,
+          stageY: gimmick.position.y,
+          stageW: gimmickSize.width,
+          stageH: gimmickSize.height,
+          rotationDeg: gimmick.rotationDeg ?? 0,
         }
       }
     }
+
     return null
   }, [])
 
-  // IDでアイテムを削除する
   const removeItem = useCallback((id: string) => {
     const stageData = latestStageDataRef.current
+
     if (id === 'gool') {
-      latestStageDataRef.current = {
+      if (!isGoalPlaced(stageData.goal.position)) {
+        return
+      }
+      setStageData({
         ...stageData,
         goal: { ...stageData.goal, position: createUnplacedGoalPosition() },
-      }
-    } else {
-      latestStageDataRef.current = {
-        ...stageData,
-        gimmicks: stageData.gimmicks.filter((g) => g.id !== id),
-      }
-    }
-  }, [])
-
-  // IDでアイテムを90度回転させる
-  const rotateItem = useCallback((id: string) => {
-    const stageData = latestStageDataRef.current
-    if (id === 'gool') {
-      const nextRot = ((stageData.goal.rotationDeg ?? 0) + 90) % 360
-      latestStageDataRef.current = {
-        ...stageData,
-        goal: { ...stageData.goal, rotationDeg: nextRot },
-      }
+      })
       return
     }
-    latestStageDataRef.current = {
-      ...stageData,
-      gimmicks: stageData.gimmicks.map((g) => {
-        if (g.id !== id) {
-          return g
-        }
-        const nextRot = ((g.rotationDeg ?? 0) + 90) % 360
-        return { ...g, rotationDeg: nextRot }
-      }),
+
+    const nextGimmicks = stageData.gimmicks.filter((gimmick) => gimmick.id !== id)
+    if (nextGimmicks.length === stageData.gimmicks.length) {
+      return
     }
-  }, [])
+
+    setStageData({
+      ...stageData,
+      gimmicks: nextGimmicks,
+    })
+  }, [setStageData])
+
+  const rotateItem = useCallback((id: string) => {
+    const stageData = latestStageDataRef.current
+
+    if (id === 'gool') {
+      const nextRot = ((stageData.goal.rotationDeg ?? 0) + 90) % 360
+      setStageData({
+        ...stageData,
+        goal: { ...stageData.goal, rotationDeg: nextRot },
+      })
+      return
+    }
+
+    let changed = false
+    const nextGimmicks = stageData.gimmicks.map((gimmick) => {
+      if (gimmick.id !== id) {
+        return gimmick
+      }
+      changed = true
+      const nextRot = ((gimmick.rotationDeg ?? 0) + 90) % 360
+      return { ...gimmick, rotationDeg: nextRot }
+    })
+    if (!changed) {
+      return
+    }
+
+    setStageData({
+      ...stageData,
+      gimmicks: nextGimmicks,
+    })
+  }, [setStageData])
 
   return {
     canvasRef,

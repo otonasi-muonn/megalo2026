@@ -107,7 +107,27 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      increment_stage_counters: {
+        Args: {
+          p_stage_id: string
+          p_clear_increment?: number
+        }
+        Returns: {
+          play_count: number
+          clear_count: number
+        }[]
+      }
+      recalc_stage_like_count: {
+        Args: {
+          stage_id: string
+        }
+        Returns: {
+          like_count: number
+          updated_at: string
+        }[]
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
