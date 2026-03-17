@@ -85,7 +85,7 @@ pnpm ccss:assets:sync
 - `apps/frontend/public/ccss/ui.generated.css`
 - `apps/frontend/public/ccss/ccss.manifest.json`
 
-### 動作確認方法（CCSS compiler + runtime PoC）
+### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
 #### 1. 正常系（変換 + 同期 + 画面確認）
 
@@ -102,6 +102,7 @@ pnpm --filter frontend dev
 - `examples/output` と `apps/frontend/public/ccss` に生成物3点が揃うこと
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
 - `生成物を読み込む` 後に `style-patch API適用` を押すと、`applied recipes` が表示されること
+- `transpile validate API` セクションで `ソース検証を実行` を押すと `OK` 結果が表示されること
 
 #### 2. 異常系（サブセット外入力）
 
@@ -114,6 +115,15 @@ pnpm --filter @ccss/compiler run transform -- --input <invalid.tsx> --outDir <ou
 期待結果:
 
 - `CCSS_PARSE_ERROR` が表示され、非0で終了すること
+
+#### 3. 異常系（validate APIの構文エラー）
+
+PoCページの `transpile validate API` セクションで、入力ソースに `useEffect` などサブセット外構文を含めて `ソース検証を実行` します。
+
+期待結果:
+
+- `NG: サブセット外構文があります。` が表示されること
+- 行・列付きでエラーが表示されること（例: `L3:C3 ...`）
 
 ## 📁 主要ディレクトリ
 

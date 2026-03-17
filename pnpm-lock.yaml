@@ -10,6 +10,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@ccss/compiler':
+        specifier: workspace:*
+        version: link:../../packages/ccss-compiler
       '@supabase/supabase-js':
         specifier: ^2.99.2
         version: 2.99.2

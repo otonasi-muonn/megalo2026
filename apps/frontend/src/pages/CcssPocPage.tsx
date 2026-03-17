@@ -34,8 +34,39 @@ type StylePatchResponse = {
   rulesetVersion: string
 }
 
+type TranspileValidateResponse = {
+  ok: boolean
+  sourcePath: string
+  component?: {
+    name: string
+    stateCount: number
+    stateNames: string[]
+  }
+  errors: Array<{
+    message: string
+    line: number
+    column: number
+  }>
+  warnings: Array<{
+    message: string
+    line: number
+    column: number
+  }>
+}
+
 const EXPECTED_UI_ROOT_ID = 'ccss-ui-root'
 const EXPECTED_GAME_ROOT_ID = 'ccss-game-root'
+const DEFAULT_VALIDATE_SOURCE = `import { useState } from 'react'
+
+export function InlinePanel() {
+  const [open, setOpen] = useState(false)
+  return (
+    <main>
+      <button onClick={() => setOpen(!open)}>toggle</button>
+      <div data-ccss-state="ccss:inline:inline-panel:open">panel</div>
+    </main>
+  )
+}`
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
@@ -76,8 +107,11 @@ export const CcssPocPage = () => {
   const [generatedHtml, setGeneratedHtml] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isApplyingPatch, setIsApplyingPatch] = useState(false)
+  const [isValidatingSource, setIsValidatingSource] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
+  const [sourceInput, setSourceInput] = useState(DEFAULT_VALIDATE_SOURCE)
+  const [validateResult, setValidateResult] = useState<TranspileValidateResponse | null>(null)
 
   const firstState = useMemo(() => manifest?.states[0] ?? null, [manifest])
 
@@ -168,6 +202,23 @@ export const CcssPocPage = () => {
       setIsApplyingPatch(false)
     }
   }, [firstState])
+
+  const validateSourceWithApi = useCallback(async () => {
+    try {
+      setIsValidatingSource(true)
+      setErrorMessage(null)
+
+      const response = await apiPost<TranspileValidateResponse>('/api/ccss/transpile/validate', {
+        source: sourceInput,
+        sourcePath: 'inline.tsx',
+      })
+      setValidateResult(response)
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setIsValidatingSource(false)
+    }
+  }, [sourceInput])
 
   useEffect(() => {
     const root = uiRootRef.current
@@ -284,6 +335,50 @@ export const CcssPocPage = () => {
           )}
         </div>
       )}
+
+      <section className="ccss-validate-section">
+        <h2 className="sub-heading">transpile validate API</h2>
+        <p className="status-text">
+          <code>POST /api/ccss/transpile/validate</code> で、Reactサブセット適合を検証します。
+        </p>
+        <textarea
+          className="ccss-source-input"
+          value={sourceInput}
+          onChange={(event) => setSourceInput(event.target.value)}
+          spellCheck={false}
+        />
+        <div className="inline-actions">
+          <button
+            type="button"
+            className="button secondary"
+            onClick={validateSourceWithApi}
+            disabled={isValidatingSource}
+          >
+            {isValidatingSource ? '検証中...' : 'ソース検証を実行'}
+          </button>
+        </div>
+
+        {validateResult && (
+          <div className="ccss-validate-result">
+            {validateResult.ok ? (
+              <p className="success-text">
+                OK: {validateResult.component?.name}（states: {validateResult.component?.stateCount ?? 0}）
+              </p>
+            ) : (
+              <>
+                <p className="error-text">NG: サブセット外構文があります。</p>
+                <ul className="ccss-validate-errors">
+                  {validateResult.errors.map((error) => (
+                    <li key={`${error.line}-${error.column}-${error.message}`}>
+                      L{error.line}:C{error.column} {error.message}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="ccss-runtime-grid">
         <div>

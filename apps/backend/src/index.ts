@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { parseComponentSource } from '@ccss/compiler'
 import { createClient, type PostgrestError } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { Hono, type Context, type MiddlewareHandler } from 'hono'
@@ -865,6 +866,61 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
       add: recipe.addClasses,
     })),
     rulesetVersion: CCSS_RULESET_VERSION,
+  })
+})
+
+app.post('/api/ccss/transpile/validate', optionalAuth, async (c) => {
+  const bodyResult = await readJsonObject(c)
+  if (bodyResult instanceof Response) {
+    return bodyResult
+  }
+
+  const rawSource = bodyResult.source
+  if (typeof rawSource !== 'string' || rawSource.trim().length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_SOURCE',
+      'source は空でない文字列で指定してください',
+      'TSXソース文字列を source に指定してください',
+    )
+  }
+  const source = rawSource
+
+  const rawSourcePath = bodyResult.sourcePath
+  if (rawSourcePath !== undefined && typeof rawSourcePath !== 'string') {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_SOURCE_PATH',
+      'sourcePath は文字列で指定してください',
+      '例: inline.tsx',
+    )
+  }
+  const sourcePath = typeof rawSourcePath === 'string' && rawSourcePath.trim().length > 0
+    ? rawSourcePath.trim()
+    : 'inline.tsx'
+
+  const parseResult = parseComponentSource(source, sourcePath)
+  if (!parseResult.component || parseResult.errors.length > 0) {
+    return c.json({
+      ok: false,
+      sourcePath,
+      errors: parseResult.errors,
+      warnings: [],
+    })
+  }
+
+  return c.json({
+    ok: true,
+    sourcePath,
+    component: {
+      name: parseResult.component.name,
+      stateCount: parseResult.component.states.length,
+      stateNames: parseResult.component.states.map((state) => state.name),
+    },
+    errors: [],
+    warnings: [],
   })
 })
 

@@ -16,6 +16,38 @@
   gap: 16px;
 }
 
+.ccss-validate-section {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f9fafb;
+}
+
+.ccss-source-input {
+  width: 100%;
+  min-height: 180px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ccss-validate-result {
+  display: grid;
+  gap: 8px;
+}
+
+.ccss-validate-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #991b1b;
+}
+
 .ccss-runtime-grid h2 {
   margin: 0 0 8px;
 }
