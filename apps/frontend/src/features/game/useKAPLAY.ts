@@ -341,10 +341,10 @@ const calcWindForce = (
   const MAX_IMPULSE = 2200 * forceScale
   const impulse = strength * MAX_IMPULSE
 
-  // 方向は速度ベクトルから
+  // 方向は速度ベクトルから（forceScale は MAX_IMPULSE 側で適用済み）
   const safeDenom = speed > 0 ? speed : 1
-  const fx = (speedX / safeDenom) * impulse * forceScale
-  const fy = (speedY / safeDenom) * impulse * forceScale
+  const fx = (speedX / safeDenom) * impulse
+  const fy = (speedY / safeDenom) * impulse
   return { fx, fy }
 }
 
@@ -603,8 +603,10 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
-  // デバッグ用キーボードショートカット（C=クリア / F=失敗）
+  // デバッグ用キーボードショートカット（C=クリア / F=失敗）— play / test のみ有効
   useEffect(() => {
+    if (mode !== 'play' && mode !== 'test') return
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === 'c') {
         onGameEndRef.current?.(true)
@@ -615,7 +617,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [mode])
 
   const exportStageData = useCallback((): StageData => latestStageDataRef.current, [])
 
