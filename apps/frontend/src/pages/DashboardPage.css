@@ -1,0 +1,252 @@
+/* DashboardPage.css */
+
+/* Add your styles here */
+
+.page-card.dashboard-page {
+  background: url('/images/sea.png') center / cover no-repeat;
+}
+
+.page-card .stage-list {
+  list-style: none;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(3, 216px);
+  grid-auto-flow: row;
+  gap: 16px;
+  justify-content: center;
+  align-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 70vh;
+  padding: 28px 16px 16px;
+}
+
+.page-card .stage-item {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-card .stage-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.page-card .stage-actions .button {
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.page-card .stage-actions .button.secondary {
+  background: rgba(236, 248, 255, 0.82);
+  border-color: #83aeca;
+  color: #1f4d68;
+}
+
+.page-card .stage-actions .button.secondary:hover {
+  background: rgba(217, 239, 252, 0.92);
+}
+
+.page-card .stage-actions .stage-delete-button {
+  background: rgba(255, 230, 230, 0.82);
+  border-color: #d7a0a0;
+  color: #8a3f3f;
+}
+
+.page-card .stage-actions .stage-delete-button:hover {
+  background: rgba(255, 214, 214, 0.92);
+}
+
+.page-card .stage-actions .button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-card .stage-actions .action-with-label {
+  position: relative;
+}
+
+.page-card .stage-actions .action-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #ffffff;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.page-card .stage-actions .action-with-label:hover .action-label,
+.page-card .stage-actions .action-with-label:focus-visible .action-label,
+.page-card .stage-actions .action-with-label:active .action-label {
+  opacity: 1;
+}
+
+.page-card .sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.page-card .sort-controls select {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background-color: #fff;
+}
+
+.page-card .stage-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0;
+  width: 100%;
+  height: 200px;
+  background-color: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 18px rgba(8, 32, 55, 0.22);
+  text-align: center;
+}
+
+.page-card .stage-create-card {
+  width: 100%;
+  height: 240px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #1f4d68;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(236, 248, 255, 0.36);
+}
+
+.page-card .stage-create-item {
+  justify-content: center;
+}
+
+.page-card .stage-create-card .stage-title {
+  margin: 0;
+  text-align: center;
+}
+
+.page-card .stage-create-card:hover {
+  background-color: rgba(236, 248, 255, 0.5);
+}
+
+.page-card .stage-create-plus {
+  font-size: 46px;
+  line-height: 1;
+  margin: 0;
+}
+
+.page-card .stage-image-area {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.page-card .stage-card img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.page-card .stage-image-placeholder {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #c7b39b;
+  border-radius: 8px;
+  color: #7c6957;
+  font-size: 12px;
+}
+
+.page-card .stage-image-upload-input {
+  display: none;
+}
+
+.page-card .stage-image-overlay-button {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translate(-50%, 6px);
+  padding: 4px 8px;
+  border: 1px solid #8d6e4e;
+  border-radius: 6px;
+  background-color: #fff7e8;
+  color: #5a3e2b;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.page-card .stage-image-area:hover .stage-image-overlay-button,
+.page-card .stage-image-area:focus-within .stage-image-overlay-button {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (hover: none) {
+  .page-card .stage-image-overlay-button {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.page-card .stage-card .stage-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #5a3e2b;
+  margin-bottom: 8px;
+}
+
+.page-card .stage-card .favorite-rating {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.page-card .stage-favorite-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.page-card .stage-favorite-button.active {
+  color: #e65072;
+}
+
+.page-card .stage-favorite-button.inactive {
+  color: #9ca3af;
+}
