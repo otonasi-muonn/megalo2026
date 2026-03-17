@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { createEmptyStageData } from '@shared/types'
 import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
@@ -10,19 +10,37 @@ const getErrorMessage = (error: unknown): string =>
 
 export const CreatePage = () => {
   const initialStageData = useMemo(() => createEmptyStageData(), [])
-  const { canvasRef, exportStageData } = useKAPLAY({
-    initialStageData,
-    mode: 'edit',
-  })
 
-  const [title, setTitle] = useState('')
-  const [isPublished, setIsPublished] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [createdStageId, setCreatedStageId] = useState<string | null>(null)
+  // ── クリア制限付き公開フラグ ──────────────────────────────
+  const [isClearChecked, setIsClearChecked] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleTestEnd = useCallback((isCleared: boolean) => {
+    setIsTesting(false)
+    if (isCleared) {
+      setIsClearChecked(true)
+      setResultMessage('テストプレイ：クリア成功！「公開して作成」ボタンが有効になりました。')
+    } else {
+      setResultMessage('テストプレイ：失敗。公開する場合は再度テストプレイでクリアしてください。')
+    }
+  }, [])
+
+  const { canvasRef, exportStageData } = useKAPLAY({
+    initialStageData,
+    mode: isTesting ? 'test' : 'edit',
+    onGameEnd: handleTestEnd,
+  })
+
+  const [title, setTitle] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [createdStageId, setCreatedStageId] = useState<string | null>(null)
+
+  const handleSubmit = async (
+    event: { preventDefault: () => void },
+    publishNow: boolean,
+  ) => {
     event.preventDefault()
 
     try {
@@ -32,12 +50,16 @@ export const CreatePage = () => {
 
       const response = await apiPost<StageResponse>('/api/stages', {
         title: title.trim() || 'Untitled Stage',
-        is_published: isPublished,
+        is_published: publishNow,
         stage_data: exportStageData(),
       })
 
       setCreatedStageId(response.data.id)
-      setResultMessage(`ステージを作成しました: ${response.data.id}`)
+      setResultMessage(
+        publishNow
+          ? `ステージを公開しました: ${response.data.id}`
+          : `ステージを下書き保存しました: ${response.data.id}`,
+      )
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -52,11 +74,38 @@ export const CreatePage = () => {
         保存アクション時に <code>POST /api/stages</code> を実行します。
       </p>
 
+      {/* ゲームキャンバス */}
       <div className="canvas-wrapper">
-        <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
+        <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
       </div>
 
-      <form className="form-grid" onSubmit={handleSubmit}>
+      {/* テストプレイ操作 */}
+      <div className="inline-actions">
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            setResultMessage(null)
+            setIsTesting(true)
+          }}
+          disabled={isTesting}
+        >
+          {isTesting ? 'テスト中...' : 'テストプレイ開始'}
+        </button>
+        {isTesting && (
+          <p className="status-text">
+            プレイ中です。（デバッグ: C キー=クリア / F キー=失敗）
+          </p>
+        )}
+      </div>
+
+      {/* クリア確認インジケータ */}
+      {isClearChecked && (
+        <p className="success-text">✓ クリア確認済み。「公開して作成」ボタンが有効です。</p>
+      )}
+
+      {/* 作成フォーム */}
+      <form className="form-grid" onSubmit={(e) => handleSubmit(e, false)}>
         <label className="field-label">
           タイトル
           <input
@@ -68,19 +117,23 @@ export const CreatePage = () => {
           />
         </label>
 
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={isPublished}
-            onChange={(event) => setIsPublished(event.target.checked)}
-          />
-          公開状態で作成する
-        </label>
-
         <div className="inline-actions">
-          <button className="button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '保存中...' : 'ステージ作成'}
+          {/* 下書き保存 */}
+          <button className="button secondary" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? '保存中...' : '下書き保存'}
           </button>
+
+          {/* 公開して作成：クリア確認済みのときのみ活性化 */}
+          <button
+            className="button"
+            type="button"
+            disabled={isSubmitting || !isClearChecked}
+            title={!isClearChecked ? 'テストプレイでクリアしてから公開できます' : undefined}
+            onClick={(e) => handleSubmit(e, true)}
+          >
+            {isSubmitting ? '保存中...' : '公開して作成'}
+          </button>
+
           <AppLink to="/dashboard" className="button secondary">
             ダッシュボードへ
           </AppLink>
