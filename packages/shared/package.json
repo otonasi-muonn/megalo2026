@@ -1,13 +1,19 @@
 {
-  "name": "shared",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "@shared/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "default": "./src/types/index.ts"
+    }
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "types": "./src/index.ts",
+  "sideEffects": false,
   "packageManager": "pnpm@10.32.1"
 }
