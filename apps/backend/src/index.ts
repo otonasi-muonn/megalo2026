@@ -588,16 +588,11 @@ app.post('/api/stages/:id/play_logs', optionalAuth, async (c) => {
     return dbError(c, logError, 'プレイログ記録に失敗しました')
   }
 
-  const nextPlayCount = stage.play_count + 1
-  const nextClearCount = stage.clear_count + (isCleared ? 1 : 0)
   const { data: updatedStage, error: updateError } = await supabase
-    .from('stages')
-    .update({
-      play_count: nextPlayCount,
-      clear_count: nextClearCount,
+    .rpc('increment_stage_counters', {
+      p_stage_id: stageId,
+      p_clear_increment: isCleared ? 1 : 0,
     })
-    .eq('id', stageId)
-    .select('play_count,clear_count')
     .single()
 
   if (updateError) {
@@ -669,20 +664,8 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
     }
   }
 
-  const { count: likeCount, error: countError } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('stage_id', stageId)
-
-  if (countError) {
-    return dbError(c, countError, 'いいね件数の算出に失敗しました')
-  }
-
   const { data: updatedStage, error: updateError } = await supabase
-    .from('stages')
-    .update({ like_count: likeCount ?? 0 })
-    .eq('id', stageId)
-    .select('updated_at')
+    .rpc('recalc_stage_like_count', { stage_id: stageId })
     .single()
 
   if (updateError) {
@@ -694,7 +677,7 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
       stage_id: stageId,
       user_id: userId,
       liked,
-      like_count: likeCount ?? 0,
+      like_count: updatedStage.like_count,
       updated_at: updatedStage.updated_at,
     },
   })

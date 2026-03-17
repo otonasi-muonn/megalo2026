@@ -294,7 +294,16 @@ interface WindLine {
   /** 風の力ベクトル（ステージ座標系） */
   fx: number
   fy: number
+  /** 残りの風適用ステップ数 */
+  remainingSteps: number
+  /** 1ステップごとの減衰率（0.0〜0.95） */
+  decay: number
+  /** 減衰重みの合計（総インパルスを超えないための正規化係数） */
+  totalWeight: number
 }
+
+const WIND_MAX_LIFETIME_MS = 1500
+const WIND_APPLY_STEPS = 12
 
 /**
  * スワイプベクトル（キャンバス座標系）からステージ座標系での風の力を算出する。
@@ -374,12 +383,10 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
 
   useEffect(() => {
     latestStageDataRef.current = initialStageData ?? createEmptyStageData()
-    // 初回マウント時（ステージロード完了時）は通知しない
+    // props由来の同期では onStageDataChange を発火しない（ローカル編集通知と分離）
     if (isFirstStageDataRef.current) {
       isFirstStageDataRef.current = false
-      return
     }
-    onStageDataChangeRef.current?.()
   }, [initialStageData])
 
   // ゲームループ（mode が変わるたびに再起動）
@@ -423,7 +430,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
         const windLine = windLineRef.current
         if (windLine !== null) {
           const elapsed = performance.now() - windLine.endTime
-          if (elapsed > 1500) {
+          if (elapsed > WIND_MAX_LIFETIME_MS || windLine.remainingSteps <= 0) {
             // 1.5秒経過で消滅
             windLineRef.current = null
           } else {
@@ -448,9 +455,16 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
               }
             }
             if (hit) {
-              const STEPS = 12
-              char.vx += windLine.fx / STEPS
-              char.vy += windLine.fy / STEPS
+              const retention = 1 - windLine.decay
+              const appliedIndex = WIND_APPLY_STEPS - windLine.remainingSteps
+              const stepWeight = retention ** appliedIndex
+              const stepScale = stepWeight / windLine.totalWeight
+              char.vx += windLine.fx * stepScale
+              char.vy += windLine.fy * stepScale
+              windLine.remainingSteps -= 1
+              if (windLine.remainingSteps <= 0) {
+                windLineRef.current = null
+              }
             }
           }
         }
@@ -507,7 +521,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       gameInstanceRef.current = null
     }
   // mode が変わったときのみ再起動（stageData の変化は latestStageDataRef 経由で追従）
-  }, [mode])
+  }, [mode, initialStageData])
 
   // スワイプ操作（マウス・タッチ両対応）→ 風ラインを windLineRef に書き込む
   useEffect(() => {
@@ -558,7 +572,20 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
         world.width,
         physics.windForceScale,
       )
-      windLineRef.current = { points: pts, endTime: performance.now(), fx, fy }
+      const decay = Math.max(0, Math.min(0.95, physics.windDecay))
+      const retention = 1 - decay
+      const totalWeight = retention === 1
+        ? WIND_APPLY_STEPS
+        : (1 - retention ** WIND_APPLY_STEPS) / (1 - retention)
+      windLineRef.current = {
+        points: pts,
+        endTime: performance.now(),
+        fx,
+        fy,
+        remainingSteps: WIND_APPLY_STEPS,
+        decay,
+        totalWeight,
+      }
     }
 
     // ── マウスイベント ──
@@ -599,7 +626,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd, onStageDataChange
       canvas.removeEventListener('touchend', handleTouchEnd)
     }
   // mode が変わるたびに再登録
-  }, [mode])
+  }, [mode, initialStageData])
 
   // デバッグ用キーボードショートカット（C=クリア / F=失敗）— play / test のみ有効
   useEffect(() => {
