@@ -32,6 +32,7 @@ export interface StageSpawnPoint {
 export interface StageGoalArea {
   position: Vector2
   size: Size2D
+  rotationDeg?: number
 }
 
 export type StageGimmickKind = 'spike' | 'spring' | 'fan' | 'wave' | 'wall'
@@ -55,6 +56,7 @@ export interface SpringGimmick extends StageGimmickBase<'spring'> {
 }
 
 export interface FanGimmick extends StageGimmickBase<'fan'> {
+  size?: Size2D
   force: number
   range: number
   direction: Vector2
@@ -138,6 +140,7 @@ const isStageGimmick = (value: unknown): value is StageGimmick => {
       )
     case 'fan':
       return (
+        (value.size === undefined || isSize2D(value.size)) &&
         isFiniteNumber(value.force) &&
         isFiniteNumber(value.range) &&
         isVector2(value.direction)
@@ -197,8 +200,8 @@ export const createEmptyStageData = (): StageData => ({
   },
   physics: {
     gravity: { x: 0, y: 9.8 },
-    airDrag: 0.02,
-    windDecay: 0.9,
+    airDrag: 0.012,             // 空気抵抗を下げてスワイプの効きを良くする
+    windDecay: 0.08,            // 風の減衰率（1フレームあたり8%減、2秒程度で消える）
     windForceScale: 1,
   },
   spawn: {
