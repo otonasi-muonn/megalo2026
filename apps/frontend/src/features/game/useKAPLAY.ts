@@ -373,9 +373,6 @@ export const useKAPLAY = ({
     const handleMouseDown = (event: MouseEvent) => onSwipeStart(event.clientX, event.clientY)
     const handleMouseMove = (event: MouseEvent) => onSwipeMove(event.clientX, event.clientY)
     const handleMouseUp = (event: MouseEvent) => onSwipeEnd(event.clientX, event.clientY)
-    const handleMouseLeave = () => {
-      swipe = null
-    }
 
     const handleTouchStart = (event: TouchEvent) => {
       const touch = event.touches[0]
@@ -391,18 +388,16 @@ export const useKAPLAY = ({
     }
 
     canvas.addEventListener('mousedown', handleMouseDown)
-    canvas.addEventListener('mousemove', handleMouseMove)
-    canvas.addEventListener('mouseup', handleMouseUp)
-    canvas.addEventListener('mouseleave', handleMouseLeave)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('touchstart', handleTouchStart, { passive: true })
     canvas.addEventListener('touchmove', handleTouchMove, { passive: true })
     canvas.addEventListener('touchend', handleTouchEnd, { passive: true })
 
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown)
-      canvas.removeEventListener('mousemove', handleMouseMove)
-      canvas.removeEventListener('mouseup', handleMouseUp)
-      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
       canvas.removeEventListener('touchstart', handleTouchStart)
       canvas.removeEventListener('touchmove', handleTouchMove)
       canvas.removeEventListener('touchend', handleTouchEnd)
