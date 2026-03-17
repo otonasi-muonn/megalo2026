@@ -24,6 +24,7 @@ const drawStagePreview = (
   stageData: StageData,
   mode: UseKAPLAYProps['mode'],
   frame: number,
+  playerImage?: HTMLImageElement | null,
 ) => {
   const stageWidth = stageData.world.width
   const stageHeight = stageData.world.height
@@ -38,9 +39,14 @@ const drawStagePreview = (
   context.fillStyle = '#93c5fd'
   const spawnX = toCanvasX(stageData.spawn.position.x, stageWidth, canvasWidth)
   const spawnY = toCanvasY(stageData.spawn.position.y, stageHeight, canvasHeight)
-  context.beginPath()
-  context.arc(spawnX, spawnY, 10, 0, Math.PI * 2)
-  context.fill()
+  if (playerImage) {
+    const size = 48
+    context.drawImage(playerImage, spawnX - size / 2, spawnY - size / 2, size, size)
+  } else {
+    context.beginPath()
+    context.arc(spawnX, spawnY, 10, 0, Math.PI * 2)
+    context.fill()
+  }
 
   context.fillStyle = '#34d399'
   const goalX = toCanvasX(stageData.goal.position.x, stageWidth, canvasWidth)
@@ -151,6 +157,13 @@ export const useKAPLAY = ({
     let frame = 0
     let animationFrameId: number | null = null
 
+    const playerImage = new Image()
+    let playerImageLoaded = false
+    playerImage.onload = () => {
+      playerImageLoaded = true
+    }
+    playerImage.src = '/images/player.png'
+
     const render = () => {
       frame += 1
       context.clearRect(0, 0, canvas.width, canvas.height)
@@ -161,6 +174,7 @@ export const useKAPLAY = ({
         latestStageDataRef.current,
         mode,
         frame,
+        playerImageLoaded ? playerImage : null,
       )
       animationFrameId = window.requestAnimationFrame(render)
     }
