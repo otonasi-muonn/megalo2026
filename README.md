@@ -92,6 +92,7 @@ pnpm ccss:assets:sync
 ```bash
 pnpm ccss:compiler:typecheck
 pnpm ccss:poc:prepare
+pnpm --filter hono dev
 pnpm --filter frontend dev
 ```
 
@@ -100,6 +101,7 @@ pnpm --filter frontend dev
 - エラー終了しないこと
 - `examples/output` と `apps/frontend/public/ccss` に生成物3点が揃うこと
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
+- `生成物を読み込む` 後に `style-patch API適用` を押すと、`applied recipes` が表示されること
 
 #### 2. 異常系（サブセット外入力）
 

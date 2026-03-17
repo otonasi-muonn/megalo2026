@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { apiPost } from '../utils/api'
 import '../styles/CcssPocPage.css'
 
 type ManifestState = {
@@ -20,12 +21,17 @@ type CcssManifest = {
   states: ManifestState[]
 }
 
-type MockStylePatch = {
+type StylePatchResponse = {
+  requestId: string
+  patchId: string
+  stateId: string
+  ttlMs: number
   recipeIds: string[]
   classList: Array<{
     targetClass: string
     add: string[]
   }>
+  rulesetVersion: string
 }
 
 const EXPECTED_UI_ROOT_ID = 'ccss-ui-root'
@@ -60,20 +66,6 @@ const extractHtmlFromGeneratedC = (cSource: string): string => {
   return html
 }
 
-const getMockStylePatch = (): MockStylePatch => ({
-  recipeIds: ['rcpDashboardStageCardMenuOpenV1', 'rcpSharedToastVisibleV1'],
-  classList: [
-    {
-      targetClass: 'ccss-dashboard-stage-card',
-      add: ['is-menu-open'],
-    },
-    {
-      targetClass: 'ccss-toast',
-      add: ['is-visible'],
-    },
-  ],
-})
-
 export const CcssPocPage = () => {
   const uiRootRef = useRef<HTMLDivElement>(null)
   const gameCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -83,6 +75,7 @@ export const CcssPocPage = () => {
   const [generatedCss, setGeneratedCss] = useState('')
   const [generatedHtml, setGeneratedHtml] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isApplyingPatch, setIsApplyingPatch] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
 
@@ -140,24 +133,41 @@ export const CcssPocPage = () => {
     input.checked = !input.checked
   }, [firstState])
 
-  const applyMockPatch = useCallback(() => {
+  const applyPatchFromApi = useCallback(async () => {
     const root = uiRootRef.current
-    if (!root) {
+    const stateId = firstState?.stateId
+    if (!root || !stateId) {
       return
     }
 
-    const patch = getMockStylePatch()
-    for (const rule of patch.classList) {
-      const targets = root.getElementsByClassName(rule.targetClass)
-      for (const target of targets) {
-        for (const className of rule.add) {
-          target.classList.add(className)
+    try {
+      setIsApplyingPatch(true)
+      setErrorMessage(null)
+
+      const patch = await apiPost<StylePatchResponse>('/api/ccss/style-patch', {
+        view: 'sample',
+        stateId,
+        payload: {
+          stageId: 'sample',
+        },
+      })
+
+      for (const rule of patch.classList) {
+        const targets = root.getElementsByClassName(rule.targetClass)
+        for (const target of targets) {
+          for (const className of rule.add) {
+            target.classList.add(className)
+          }
         }
       }
-    }
 
-    setAppliedRecipes(patch.recipeIds)
-  }, [])
+      setAppliedRecipes(patch.recipeIds)
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setIsApplyingPatch(false)
+    }
+  }, [firstState])
 
   useEffect(() => {
     const root = uiRootRef.current
@@ -245,8 +255,13 @@ export const CcssPocPage = () => {
         <button type="button" className="button secondary" onClick={toggleFirstState} disabled={!firstState}>
           先頭stateを切り替え
         </button>
-        <button type="button" className="button secondary" onClick={applyMockPatch} disabled={!manifest}>
-          擬似style-patch適用
+        <button
+          type="button"
+          className="button secondary"
+          onClick={applyPatchFromApi}
+          disabled={!manifest || !firstState || isApplyingPatch}
+        >
+          {isApplyingPatch ? '適用中...' : 'style-patch API適用'}
         </button>
       </div>
 

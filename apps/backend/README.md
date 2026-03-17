@@ -58,3 +58,11 @@ pnpm dev
 - `Authorization: Bearer <JWT>` を必要とするAPIは、Supabase JWKSで署名検証します。
 - トークンなし/無効トークンの場合は `401 Unauthorized` を返します。
 - `POST /api/stages/:id/play_logs` のみ認証任意です（未認証時 `player_id = null`）。
+
+## CCSS PoCエンドポイント
+
+`POST /api/ccss/style-patch` を追加しています（認証任意）。
+
+- 入力: `view`, `stateId`, `payload`
+- 出力: `recipeIds`, `classList`, `patchId`, `ttlMs`, `rulesetVersion`
+- セキュリティ: 危険トークン（`@import`, `url(`, `expression(`, `<style`）を検知した入力は `422` で拒否します。

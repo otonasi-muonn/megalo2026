@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createClient, type PostgrestError } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { Hono, type Context, type MiddlewareHandler } from 'hono'
@@ -12,14 +13,46 @@ type AppBindings = {
 }
 
 type AppContext = Context<AppBindings>
-type ErrorStatus = 400 | 401 | 403 | 404 | 500
+type ErrorStatus = 400 | 401 | 403 | 404 | 422 | 500
 type StageRecord = Database['public']['Tables']['stages']['Row']
 type StageListItem = Omit<StageRecord, 'stage_data'>
+type CcssStyleRecipe = {
+  view: string
+  stateId: string
+  recipeId: string
+  targetClass: string
+  addClasses: string[]
+}
 
 const STAGE_LIST_SELECT =
   'id,author_id,title,is_published,play_count,clear_count,like_count,created_at,updated_at'
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const CCSS_STATE_ID_PATTERN = /^ccss:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/
+const CCSS_RULESET_VERSION = '2026-03-17'
+const CCSS_PATCH_TTL_MS = 3000
+const CCSS_RECIPE_REGISTRY: CcssStyleRecipe[] = [
+  {
+    view: 'sample',
+    stateId: 'ccss:sample:sample-panel:menu-open',
+    recipeId: 'rcpDashboardStageCardMenuOpenV1',
+    targetClass: 'ccss-dashboard-stage-card',
+    addClasses: ['is-menu-open'],
+  },
+  {
+    view: 'sample',
+    stateId: 'ccss:sample:sample-panel:menu-open',
+    recipeId: 'rcpSharedToastVisibleV1',
+    targetClass: 'ccss-toast',
+    addClasses: ['is-visible'],
+  },
+]
+const CCSS_UNSAFE_TOKEN_CHECKS: Array<{ label: string; pattern: RegExp }> = [
+  { label: '@import', pattern: /@import/i },
+  { label: 'url(', pattern: /url\s*\(/i },
+  { label: 'expression(', pattern: /expression\s*\(/i },
+  { label: '<style', pattern: /<style/i },
+]
 
 const hasOwn = (value: Record<string, unknown>, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(value, key)
@@ -93,6 +126,67 @@ const readJsonObject = async (c: AppContext): Promise<Record<string, unknown> | 
 
 const jsonError = (c: AppContext, status: ErrorStatus, message: string): Response =>
   c.json({ error: message }, status)
+
+const jsonCodeError = (
+  c: AppContext,
+  status: ErrorStatus,
+  code: string,
+  message: string,
+  hint: string,
+): Response =>
+  c.json(
+    {
+      error: {
+        code,
+        message,
+        hint,
+      },
+    },
+    status,
+  )
+
+const detectUnsafeTokenLabel = (value: string): string | null => {
+  for (const check of CCSS_UNSAFE_TOKEN_CHECKS) {
+    if (check.pattern.test(value)) {
+      return check.label
+    }
+  }
+  return null
+}
+
+const findUnsafeTokenPath = (
+  value: unknown,
+  pathPrefix: string,
+): { path: string; token: string } | null => {
+  if (typeof value === 'string') {
+    const token = detectUnsafeTokenLabel(value)
+    if (token) {
+      return { path: pathPrefix, token }
+    }
+    return null
+  }
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = findUnsafeTokenPath(value[index], `${pathPrefix}[${index}]`)
+      if (found) {
+        return found
+      }
+    }
+    return null
+  }
+
+  if (isRecord(value)) {
+    for (const [key, childValue] of Object.entries(value)) {
+      const found = findUnsafeTokenPath(childValue, `${pathPrefix}.${key}`)
+      if (found) {
+        return found
+      }
+    }
+  }
+
+  return null
+}
 
 const dbError = (
   c: AppContext,
@@ -680,6 +774,97 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
       like_count: updatedStage.like_count,
       updated_at: updatedStage.updated_at,
     },
+  })
+})
+
+app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
+  const bodyResult = await readJsonObject(c)
+  if (bodyResult instanceof Response) {
+    return bodyResult
+  }
+
+  const rawView = bodyResult.view
+  if (typeof rawView !== 'string' || rawView.trim().length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_VIEW',
+      'view は空でない文字列で指定してください',
+      '例: sample',
+    )
+  }
+  const view = rawView.trim()
+
+  const rawStateId = bodyResult.stateId
+  if (typeof rawStateId !== 'string' || !CCSS_STATE_ID_PATTERN.test(rawStateId)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      '未定義の stateId です',
+      'ccss.manifest.json の stateId を指定してください',
+    )
+  }
+  const stateId = rawStateId
+
+  if (hasOwn(bodyResult, 'payload') && bodyResult.payload !== null && !isRecord(bodyResult.payload)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_PAYLOAD',
+      'payload はJSONオブジェクトで指定してください',
+      '例: { \"stageId\": \"...\" }',
+    )
+  }
+  const payload = bodyResult.payload ?? {}
+
+  const unsafe = findUnsafeTokenPath(payload, 'payload')
+  if (unsafe) {
+    return jsonCodeError(
+      c,
+      422,
+      'CCSS_UNSAFE_INPUT_REJECTED',
+      `危険トークンを検知したため拒否しました: ${unsafe.path}`,
+      `${unsafe.token} を含む入力を除去してください`,
+    )
+  }
+
+  const knownStateRecipes = CCSS_RECIPE_REGISTRY.filter((recipe) => recipe.stateId === stateId)
+  if (knownStateRecipes.length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      '未定義の stateId です',
+      'ccss.manifest.json の stateId を指定してください',
+    )
+  }
+
+  const resolvedRecipes = knownStateRecipes.filter((recipe) => recipe.view === view)
+  if (resolvedRecipes.length === 0) {
+    return jsonCodeError(
+      c,
+      403,
+      'CCSS_RECIPE_OUT_OF_SCOPE',
+      '指定 view に対応しないレシピ参照です',
+      'view と stateId の組み合わせを見直してください',
+    )
+  }
+
+  const requestId = `req_${randomUUID().replace(/-/g, '')}`
+  const patchId = `ccss_patch_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`
+
+  return c.json({
+    requestId,
+    patchId,
+    stateId,
+    ttlMs: CCSS_PATCH_TTL_MS,
+    recipeIds: resolvedRecipes.map((recipe) => recipe.recipeId),
+    classList: resolvedRecipes.map((recipe) => ({
+      targetClass: recipe.targetClass,
+      add: recipe.addClasses,
+    })),
+    rulesetVersion: CCSS_RULESET_VERSION,
   })
 })
 
