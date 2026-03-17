@@ -157,6 +157,28 @@
   background: #0f172a;
 }
 
+.canvas-wrapper.sea-background {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.3) 1px,
+      transparent 1px,
+      transparent 32px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.3) 1px,
+      transparent 1px,
+      transparent 32px
+    ),
+    url('/images/sea.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .game-canvas {
   display: block;
   width: 100%;

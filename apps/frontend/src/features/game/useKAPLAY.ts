@@ -28,11 +28,12 @@ const drawStagePreview = (
   const stageWidth = stageData.world.width
   const stageHeight = stageData.world.height
 
-  context.fillStyle = '#0f172a'
-  context.fillRect(0, 0, canvasWidth, canvasHeight)
-
-  context.fillStyle = mode === 'play' ? '#1f2937' : '#111827'
-  context.fillRect(0, 0, canvasWidth, canvasHeight)
+  if (mode === 'play') {
+    context.fillStyle = '#0f172a'
+    context.fillRect(0, 0, canvasWidth, canvasHeight)
+    context.fillStyle = '#1f2937'
+    context.fillRect(0, 0, canvasWidth, canvasHeight)
+  }
 
   context.fillStyle = '#93c5fd'
   const spawnX = toCanvasX(stageData.spawn.position.x, stageWidth, canvasWidth)
@@ -123,7 +124,11 @@ const drawStagePreview = (
   }
 }
 
-export const useKAPLAY = ({ initialStageData, mode, onGameEnd }: UseKAPLAYProps) => {
+export const useKAPLAY = ({
+  initialStageData,
+  mode,
+  onGameEnd,
+}: UseKAPLAYProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameInstanceRef = useRef<MockKaplayInstance | null>(null)
   const latestStageDataRef = useRef<StageData>(initialStageData ?? createEmptyStageData())
@@ -148,6 +153,7 @@ export const useKAPLAY = ({ initialStageData, mode, onGameEnd }: UseKAPLAYProps)
 
     const render = () => {
       frame += 1
+      context.clearRect(0, 0, canvas.width, canvas.height)
       drawStagePreview(
         context,
         canvas.width,

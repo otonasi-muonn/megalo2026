@@ -52,7 +52,7 @@ export const CreatePage = () => {
         保存アクション時に <code>POST /api/stages</code> を実行します。
       </p>
 
-      <div className="canvas-wrapper">
+      <div className="canvas-wrapper sea-background">
         <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
       </div>
 
