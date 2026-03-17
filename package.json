@@ -10,6 +10,8 @@
     "supabase:status": "supabase status",
     "ccss:compiler:typecheck": "pnpm --filter @ccss/compiler run typecheck",
     "ccss:compiler:sample": "pnpm --filter @ccss/compiler run sample",
+    "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
+    "ccss:poc:prepare": "pnpm ccss:compiler:sample && pnpm ccss:assets:sync",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

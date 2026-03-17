@@ -17,9 +17,14 @@ export function SamplePanel() {
             switch tab
           </button>
         </nav>
-        <div data-ccss-state="ccss:sample:sample-panel:menu-open">dashboard panel</div>
+        <div
+          className="ccss-dashboard-stage-card"
+          data-ccss-state="ccss:sample:sample-panel:menu-open"
+        >
+          dashboard panel
+        </div>
+        <div className="ccss-toast">toast area</div>
       </section>
-      <canvas id="stage-canvas" />
     </main>
   )
 }

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "compiler": "@ccss/compiler",
+  "generatedAt": "2026-03-17T19:33:43.908Z",
+  "sourcePath": "C:\\.program_code\\megalo2026\\packages\\ccss-compiler\\examples\\input\\sample.tsx",
+  "component": {
+    "name": "SamplePanel",
+    "slug": "sample-panel"
+  },
+  "domRoots": {
+    "uiRootId": "ccss-ui-root",
+    "gameRootId": "ccss-game-root"
+  },
+  "states": [
+    {
+      "name": "menuOpen",
+      "kind": "boolean",
+      "initialValue": false,
+      "stateId": "ccss:sample:sample-panel:menu-open"
+    },
+    {
+      "name": "activeTab",
+      "kind": "enum",
+      "initialValue": "home",
+      "stateId": "ccss:sample:sample-panel:active-tab"
+    }
+  ]
+}

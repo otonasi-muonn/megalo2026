@@ -19,7 +19,11 @@ const toKebab = (value: string): string => (
 )
 
 const serializeAttribute = (name: string, value: string | null): string => {
-  const normalizedName = name === 'className' ? 'class' : name
+  const normalizedName = (() => {
+    if (name === 'className') return 'class'
+    if (name === 'htmlFor') return 'for'
+    return name
+  })()
   if (value === null) {
     return normalizedName
   }

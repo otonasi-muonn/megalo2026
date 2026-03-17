@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from './components/AppLink'
+import { CcssPocPage } from './pages/CcssPocPage'
 import { CreatePage } from './pages/CreatePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EditPage } from './pages/EditPage'
@@ -98,6 +99,10 @@ function App() {
       return <CreatePage />
     }
 
+    if (pathname === '/ccss-poc') {
+      return <CcssPocPage />
+    }
+
     if (editStageId) {
       return <EditPage stageId={editStageId} />
     }
@@ -152,6 +157,12 @@ function App() {
             className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
           >
             ステージ作成
+          </AppLink>
+          <AppLink
+            to="/ccss-poc"
+            className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
+          >
+            CCSS PoC
           </AppLink>
         </nav>
       </header>
