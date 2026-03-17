@@ -58,6 +58,69 @@ const isSegmentIntersectingRect = (
   return tMax >= tMin
 }
 
+const toRotatedLocalPoint = (
+  worldX: number,
+  worldY: number,
+  centerX: number,
+  centerY: number,
+  rotationRad: number,
+): { x: number; y: number } => {
+  const dx = worldX - centerX
+  const dy = worldY - centerY
+  const cos = Math.cos(rotationRad)
+  const sin = Math.sin(rotationRad)
+
+  return {
+    x: dx * cos + dy * sin,
+    y: -dx * sin + dy * cos,
+  }
+}
+
+const toWorldVector = (
+  localX: number,
+  localY: number,
+  rotationRad: number,
+): { x: number; y: number } => {
+  const cos = Math.cos(rotationRad)
+  const sin = Math.sin(rotationRad)
+
+  return {
+    x: localX * cos - localY * sin,
+    y: localX * sin + localY * cos,
+  }
+}
+
+const isSegmentIntersectingRotatedRect = (
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+  rotationDeg: number,
+  padding: number,
+): boolean => {
+  const centerX = rx + rw / 2
+  const centerY = ry + rh / 2
+  const rotRad = (rotationDeg * Math.PI) / 180
+
+  const p1 = toRotatedLocalPoint(x1, y1, centerX, centerY, rotRad)
+  const p2 = toRotatedLocalPoint(x2, y2, centerX, centerY, rotRad)
+
+  return isSegmentIntersectingRect(
+    p1.x,
+    p1.y,
+    p2.x,
+    p2.y,
+    -rw / 2 - padding,
+    -rh / 2 - padding,
+    rw + padding * 2,
+    rh + padding * 2,
+  )
+}
+
 const hasWallBetweenFanAndChar = (
   stageData: StageData,
   startX: number,
@@ -71,12 +134,20 @@ const hasWallBetweenFanAndChar = (
       continue
     }
 
-    const rx = gimmick.position.x - padding
-    const ry = gimmick.position.y - padding
-    const rw = gimmick.size.width + padding * 2
-    const rh = gimmick.size.height + padding * 2
-
-    if (isSegmentIntersectingRect(startX, startY, endX, endY, rx, ry, rw, rh)) {
+    if (
+      isSegmentIntersectingRotatedRect(
+        startX,
+        startY,
+        endX,
+        endY,
+        gimmick.position.x,
+        gimmick.position.y,
+        gimmick.size.width,
+        gimmick.size.height,
+        gimmick.rotationDeg ?? 0,
+        padding,
+      )
+    ) {
       return true
     }
   }
@@ -136,15 +207,19 @@ export const resolveWallCollision = (char: CharState, stageData: StageData): voi
       continue
     }
 
-    const rx = gimmick.position.x
-    const ry = gimmick.position.y
+    const rotationRad = ((gimmick.rotationDeg ?? 0) * Math.PI) / 180
     const rw = gimmick.size.width
     const rh = gimmick.size.height
+    const halfW = rw / 2
+    const halfH = rh / 2
+    const centerX = gimmick.position.x + halfW
+    const centerY = gimmick.position.y + halfH
 
-    const nearestX = Math.max(rx, Math.min(char.x, rx + rw))
-    const nearestY = Math.max(ry, Math.min(char.y, ry + rh))
-    let dx = char.x - nearestX
-    let dy = char.y - nearestY
+    const localChar = toRotatedLocalPoint(char.x, char.y, centerX, centerY, rotationRad)
+    const nearestX = Math.max(-halfW, Math.min(localChar.x, halfW))
+    const nearestY = Math.max(-halfH, Math.min(localChar.y, halfH))
+    let dx = localChar.x - nearestX
+    let dy = localChar.y - nearestY
     let dist = Math.hypot(dx, dy)
 
     if (dist >= char.radius) {
@@ -152,10 +227,10 @@ export const resolveWallCollision = (char: CharState, stageData: StageData): voi
     }
 
     if (dist === 0) {
-      const toLeft = Math.abs(char.x - rx)
-      const toRight = Math.abs(rx + rw - char.x)
-      const toTop = Math.abs(char.y - ry)
-      const toBottom = Math.abs(ry + rh - char.y)
+      const toLeft = Math.abs(localChar.x + halfW)
+      const toRight = Math.abs(halfW - localChar.x)
+      const toTop = Math.abs(localChar.y + halfH)
+      const toBottom = Math.abs(halfH - localChar.y)
       const minPen = Math.min(toLeft, toRight, toTop, toBottom)
 
       if (minPen === toLeft) {
@@ -174,18 +249,19 @@ export const resolveWallCollision = (char: CharState, stageData: StageData): voi
       dist = 1
     }
 
-    const nx = dx / dist
-    const ny = dy / dist
+    const nxLocal = dx / dist
+    const nyLocal = dy / dist
+    const normal = toWorldVector(nxLocal, nyLocal, rotationRad)
     const penetration = char.radius - dist
 
-    char.x += nx * penetration
-    char.y += ny * penetration
+    char.x += normal.x * penetration
+    char.y += normal.y * penetration
 
-    const vn = char.vx * nx + char.vy * ny
+    const vn = char.vx * normal.x + char.vy * normal.y
     if (vn < 0) {
       // 壁に向かう速度成分だけ打ち消して貫通を防ぐ
-      char.vx -= vn * nx
-      char.vy -= vn * ny
+      char.vx -= vn * normal.x
+      char.vy -= vn * normal.y
     }
   }
 }

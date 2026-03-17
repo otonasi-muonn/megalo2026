@@ -210,8 +210,8 @@ export const drawStagePreview = (
   if (mode !== 'edit') {
     const charCx = toCanvasX(char.x, stageWidth, canvasWidth)
     const charCy = toCanvasY(char.y, stageHeight, canvasHeight)
-    const spriteSize = 48
-    const charCr = spriteSize / 2
+    const charCr = (char.radius / stageWidth) * canvasWidth
+    const spriteSize = charCr * 2
 
     if (assets.playerImage && assets.playerImage.complete && assets.playerImage.naturalWidth > 0) {
       context.drawImage(assets.playerImage, charCx - spriteSize / 2, charCy - spriteSize / 2, spriteSize, spriteSize)
