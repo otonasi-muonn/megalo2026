@@ -665,24 +665,12 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
     }
   }
 
-  const { count: likeCount, error: countError } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('stage_id', stageId)
-
-  if (countError) {
-    return dbError(c, countError, 'いいね件数の算出に失敗しました')
-  }
-
-  const { data: updatedStage, error: updateError } = await supabase
-    .from('stages')
-    .update({ like_count: likeCount ?? 0 })
-    .eq('id', stageId)
-    .select('updated_at')
+  const { data: updatedStage, error: recalcError } = await supabase
+    .rpc('recalc_stage_like_count', { stage_id: stageId })
     .single()
 
-  if (updateError) {
-    return dbError(c, updateError, 'ステージのいいね件数更新に失敗しました')
+  if (recalcError) {
+    return dbError(c, recalcError, 'ステージのいいね件数更新に失敗しました')
   }
 
   return c.json({
@@ -690,7 +678,7 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
       stage_id: stageId,
       user_id: userId,
       liked,
-      like_count: likeCount ?? 0,
+      like_count: updatedStage.like_count,
       updated_at: updatedStage.updated_at,
     },
   })
