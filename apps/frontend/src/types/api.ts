@@ -45,9 +45,9 @@ export interface StageListResponse extends ApiEnvelope<StageListItemDto[]> {
   filters: StageFilters
 }
 
-export interface StageResponse extends ApiEnvelope<StageDto> {}
+export type StageResponse = ApiEnvelope<StageDto>
 
-export interface ProfileResponse extends ApiEnvelope<ProfileDto> {}
+export type ProfileResponse = ApiEnvelope<ProfileDto>
 
 export interface ProfileLikesResponse extends ApiEnvelope<StageListItemDto[]> {
   total: number
@@ -77,4 +77,4 @@ export interface LikeToggleDto {
   updated_at: string
 }
 
-export interface LikeToggleResponse extends ApiEnvelope<LikeToggleDto> {}
+export type LikeToggleResponse = ApiEnvelope<LikeToggleDto>
