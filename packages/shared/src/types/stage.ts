@@ -32,6 +32,7 @@ export interface StageSpawnPoint {
 export interface StageGoalArea {
   position: Vector2
   size: Size2D
+  rotationDeg?: number
 }
 
 export type StageGimmickKind = 'spike' | 'spring' | 'fan' | 'wave' | 'wall'
