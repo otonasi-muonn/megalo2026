@@ -1,5 +1,12 @@
 # 🚀 プロジェクト概要
 
+## 関連ドキュメント
+
+- [README](../README.md)
+- [01_api-design.md](01_api-design.md)
+- [02_db-design.md](02_db-design.md)
+- [03_front.md](03_front.md)
+
 ## 1. コンセプト
 
 * **コア体験**: スワイプで風を起こしてキャラを運ぶ物理アクション ＆ 直感操作で作れるステージ制作・共有ブラウザゲーム
@@ -54,3 +61,4 @@
   │           └── db/          # Supabase接続・クエリ処理
   └── packages/
       └── shared/           # ★フロント・バックエンド共有の型定義 (JSON構造など)
+```

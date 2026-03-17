@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import type { Pagination, StageListItemDto, StageListResponse } from '../types/api'
 import { apiGet } from '../utils/api'
+import '../styles/HomePage.css'
 
 const initialPagination: Pagination = {
   page: 1,
@@ -54,45 +55,68 @@ export const HomePage = () => {
   }, [])
 
   return (
-    <section className="page-card">
-      <h1 className="page-heading">ホーム</h1>
-      <p className="status-text">
-        公開ステージ一覧を表示します。API: <code>GET /api/stages</code>
-      </p>
+    <>
+      <section className="hero-section">
+        <div className="hero-container">
+          <h1 className="hero-title">megalo2026へようこそ</h1>
+          <p className="hero-subtitle">ステージを作成してシェアしよう</p>
+          <nav className="hero-nav">
+            <AppLink to="/play/featured" className="button hero-button play-button">
+              <span className="button-icon">🎮</span>
+              <span>Play</span>
+            </AppLink>
+            <AppLink to="/create" className="button hero-button create-button">
+              <span className="button-icon">✏️</span>
+              <span>Create</span>
+            </AppLink>
+            <AppLink to="/dashboard" className="button hero-button dashboard-button">
+              <span className="button-icon">📊</span>
+              <span>My Stages</span>
+            </AppLink>
+          </nav>
+        </div>
+      </section>
 
-      {isLoading && <p className="status-text">読み込み中...</p>}
-
-      {errorMessage && (
-        <p className="error-text" role="alert">
-          読み込み失敗: {errorMessage}
+      <section className="page-card">
+        <h2 className="page-heading">公開ステージ一覧</h2>
+        <p className="status-text">
+          最新の公開ステージをチェック！API: <code>GET /api/stages</code>
         </p>
-      )}
 
-      {!isLoading && !errorMessage && (
-        <>
-          <p className="status-text">
-            取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}
-            ）
+        {isLoading && <p className="status-text">読み込み中...</p>}
+
+        {errorMessage && (
+          <p className="error-text" role="alert">
+            読み込み失敗: {errorMessage}
           </p>
-          <ul className="stage-list">
-            {stages.map((stage) => (
-              <li key={stage.id} className="stage-item">
-                <div>
-                  <strong>{stage.title}</strong>
-                  <p className="meta-text">
-                    play: {stage.play_count} / clear: {stage.clear_count} / like:{' '}
-                    {stage.like_count}
-                  </p>
-                </div>
-                <AppLink to={`/play/${stage.id}`} className="button secondary">
-                  プレイ
-                </AppLink>
-              </li>
-            ))}
-            {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
-          </ul>
-        </>
-      )}
-    </section>
+        )}
+
+        {!isLoading && !errorMessage && (
+          <>
+            <p className="status-text">
+              取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}
+              ）
+            </p>
+            <ul className="stage-list">
+              {stages.map((stage) => (
+                <li key={stage.id} className="stage-item">
+                  <div>
+                    <strong>{stage.title}</strong>
+                    <p className="meta-text">
+                      play: {stage.play_count} / clear: {stage.clear_count} / like:{' '}
+                      {stage.like_count}
+                    </p>
+                  </div>
+                  <AppLink to={`/play/${stage.id}`} className="button secondary">
+                    プレイ
+                  </AppLink>
+                </li>
+              ))}
+              {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
+            </ul>
+          </>
+        )}
+      </section>
+    </>
   )
 }
