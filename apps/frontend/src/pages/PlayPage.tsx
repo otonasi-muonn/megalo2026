@@ -106,7 +106,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
           </p>
 
           <div className="canvas-wrapper">
-            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" />
+            <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
           </div>
 
           <div className="inline-actions">
