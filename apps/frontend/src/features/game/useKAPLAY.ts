@@ -2,7 +2,7 @@ import { createEmptyStageData, type StageData, type StageGimmick, type StageGimm
 import { useCallback, useEffect, useRef } from 'react'
 import { createUnplacedGoalPosition, isGoalPlaced } from './stageEditorConstants'
 import { buildAlphaMask, getGimmickSize, getMaskHit, pixelCollision, toItemKind } from './useKAPLAY.canvas'
-import { calcWindForce, detectCollision, isCharTouchingWindLine, WIND_APPLY_STEPS, WIND_MAX_LIFETIME_MS } from './useKAPLAY.physics'
+import { applyFanRightWind, applySpringBounce, calcWindForce, detectCollision, isCharTouchingWindLine, resolveWallCollision, WIND_APPLY_STEPS, WIND_MAX_LIFETIME_MS } from './useKAPLAY.physics'
 import { drawStagePreview } from './useKAPLAY.renderer'
 import type {
   AlphaMask,
@@ -14,6 +14,78 @@ import type {
   UseKAPLAYProps,
   WindLine,
 } from './useKAPLAY.types'
+
+const isFanOpaqueAtStagePoint = (
+  fan: StageGimmick,
+  fanMask: AlphaMask,
+  stageX: number,
+  stageY: number,
+): boolean => {
+  const fanSize = getGimmickSize(fan)
+  const centerX = fan.position.x + fanSize.width / 2
+  const centerY = fan.position.y + fanSize.height / 2
+  const dx = stageX - centerX
+  const dy = stageY - centerY
+  const rot = ((fan.rotationDeg ?? 0) * Math.PI) / 180
+  const cos = Math.cos(rot)
+  const sin = Math.sin(rot)
+
+  // 回転済み座標を逆回転して、画像ローカル座標に戻す
+  const localX = dx * cos + dy * sin + fanSize.width / 2
+  const localY = -dx * sin + dy * cos + fanSize.height / 2
+
+  if (localX < 0 || localX >= fanSize.width || localY < 0 || localY >= fanSize.height) {
+    return false
+  }
+
+  const px = Math.min(Math.floor((localX / fanSize.width) * fanMask.width), fanMask.width - 1)
+  const py = Math.min(Math.floor((localY / fanSize.height) * fanMask.height), fanMask.height - 1)
+  return fanMask.data[py * fanMask.width + px] > 0
+}
+
+const isCharCollidingFanOpaque = (
+  char: CharState,
+  stageData: StageData,
+  fanMask: AlphaMask | null | undefined,
+): boolean => {
+  if (!fanMask) {
+    return false
+  }
+
+  const sampleScale = 0.85
+  const r = char.radius * sampleScale
+  const samples = [
+    [0, 0],
+    [r, 0],
+    [-r, 0],
+    [0, r],
+    [0, -r],
+    [r * 0.7, r * 0.7],
+    [-r * 0.7, r * 0.7],
+    [r * 0.7, -r * 0.7],
+    [-r * 0.7, -r * 0.7],
+  ] as const
+
+  for (const gimmick of stageData.gimmicks) {
+    if (gimmick.kind !== 'fan') {
+      continue
+    }
+
+    const size = getGimmickSize(gimmick)
+    const halfDiag = Math.hypot(size.width, size.height) / 2
+    if (Math.hypot(char.x - (gimmick.position.x + size.width / 2), char.y - (gimmick.position.y + size.height / 2)) > halfDiag + char.radius) {
+      continue
+    }
+
+    for (const [sx, sy] of samples) {
+      if (isFanOpaqueAtStagePoint(gimmick, fanMask, char.x + sx, char.y + sy)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
 
 export const useKAPLAY = ({
   initialStageData,
@@ -61,6 +133,13 @@ export const useKAPLAY = ({
       vy: 0,
       radius: 24,
     }
+
+    const seaImage = new Image()
+    let seaImageLoaded = false
+    seaImage.onload = () => {
+      seaImageLoaded = true
+    }
+    seaImage.src = '/images/sea.png'
 
     const playerImage = new Image()
     let playerImageLoaded = false
@@ -137,8 +216,20 @@ export const useKAPLAY = ({
         char.vy += physics.gravity.y * dt * 60
         char.vx *= 1 - physics.airDrag
         char.vy *= 1 - physics.airDrag
+        applyFanRightWind(char, latestStageData, dt)
+        const prevX = char.x
+        const prevY = char.y
         char.x += char.vx * dt
         char.y += char.vy * dt
+
+        applySpringBounce(char, latestStageData)
+        resolveWallCollision(char, latestStageData)
+        if (isCharCollidingFanOpaque(char, latestStageData, gimmickMasksRef.current.fan)) {
+          char.x = prevX
+          char.y = prevY
+          char.vx *= 0.6
+          char.vy *= 0.6
+        }
 
         if (char.y - char.radius < 0) {
           char.y = char.radius
@@ -161,6 +252,7 @@ export const useKAPLAY = ({
               playerImage: playerImageLoaded ? playerImage : null,
               goalImage: goalImageLoaded ? goalImage : null,
               gimmickImages,
+              seaImage: seaImageLoaded ? seaImage : null,
             },
           )
           onGameEndRef.current?.(collision === 'goal')
@@ -189,6 +281,7 @@ export const useKAPLAY = ({
           playerImage: playerImageLoaded ? playerImage : null,
           goalImage: goalImageLoaded ? goalImage : null,
           gimmickImages,
+          seaImage: seaImageLoaded ? seaImage : null,
         },
       )
 

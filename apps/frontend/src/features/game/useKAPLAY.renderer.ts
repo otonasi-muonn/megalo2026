@@ -9,6 +9,7 @@ type RenderAssets = {
   playerImage?: HTMLImageElement | null
   goalImage?: HTMLImageElement | null
   gimmickImages?: GimmickImageMap
+  seaImage?: HTMLImageElement | null
 }
 
 export const drawStagePreview = (
@@ -25,8 +26,33 @@ export const drawStagePreview = (
   const stageWidth = stageData.world.width
   const stageHeight = stageData.world.height
 
-  context.fillStyle = mode === 'edit' ? '#111827' : '#1f2937'
-  context.fillRect(0, 0, canvasWidth, canvasHeight)
+  if (mode === 'edit' || mode === 'test') {
+    // edit/testモード: sea.png背景 + 白いグリッド線
+    if (assets.seaImage && assets.seaImage.complete && assets.seaImage.naturalWidth > 0) {
+      context.drawImage(assets.seaImage, 0, 0, canvasWidth, canvasHeight)
+    } else {
+      context.fillStyle = '#4a90d9'
+      context.fillRect(0, 0, canvasWidth, canvasHeight)
+    }
+    const gridPx = (stageData.world.gridSize / stageWidth) * canvasWidth * 2
+    context.strokeStyle = 'rgba(255, 255, 255, 0.25)'
+    context.lineWidth = 1
+    for (let x = 0; x <= canvasWidth; x += gridPx) {
+      context.beginPath()
+      context.moveTo(x, 0)
+      context.lineTo(x, canvasHeight)
+      context.stroke()
+    }
+    for (let y = 0; y <= canvasHeight; y += gridPx) {
+      context.beginPath()
+      context.moveTo(0, y)
+      context.lineTo(canvasWidth, y)
+      context.stroke()
+    }
+  } else {
+    context.fillStyle = '#1f2937'
+    context.fillRect(0, 0, canvasWidth, canvasHeight)
+  }
 
   const spawnX = toCanvasX(stageData.spawn.position.x, stageWidth, canvasWidth)
   const spawnY = toCanvasY(stageData.spawn.position.y, stageHeight, canvasHeight)
@@ -41,7 +67,8 @@ export const drawStagePreview = (
       context.arc(spawnX, spawnY + 20, 10, 0, Math.PI * 2)
       context.fill()
     }
-  } else {
+  }
+  if (mode !== 'edit' && mode !== 'test') {
     context.fillStyle = 'rgba(147, 197, 253, 0.3)'
     context.beginPath()
     context.arc(spawnX, spawnY, 8, 0, Math.PI * 2)
@@ -183,10 +210,10 @@ export const drawStagePreview = (
   if (mode !== 'edit') {
     const charCx = toCanvasX(char.x, stageWidth, canvasWidth)
     const charCy = toCanvasY(char.y, stageHeight, canvasHeight)
-    const charCr = (char.radius / stageWidth) * canvasWidth
+    const spriteSize = 48
+    const charCr = spriteSize / 2
 
     if (assets.playerImage && assets.playerImage.complete && assets.playerImage.naturalWidth > 0) {
-      const spriteSize = charCr * 2.4
       context.drawImage(assets.playerImage, charCx - spriteSize / 2, charCy - spriteSize / 2, spriteSize, spriteSize)
     } else {
       context.fillStyle = '#facc15'
