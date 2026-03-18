@@ -14,6 +14,7 @@ Desktop.ini
 # エディタ・IDE の設定ファイル
 # =======================================
 .idea/
+.claude/settings.local.json
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -65,3 +66,5 @@ config.local.json
 *.sqlite3
 *.db
 dump.rdb
+.vercel
+.env*.local

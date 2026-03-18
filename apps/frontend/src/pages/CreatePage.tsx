@@ -123,7 +123,7 @@ export const CreatePage = () => {
         title: title.trim() || 'Untitled Stage',
         is_published: publishNow,
         stage_data: stageData,
-      })
+      }, { withAuth: true })
 
       setCreatedStageId(response.data.id)
       setResultMessage(

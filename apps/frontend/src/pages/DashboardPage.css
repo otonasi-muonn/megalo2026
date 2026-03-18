@@ -7,7 +7,9 @@
 .page-card.dashboard-page {
   background: url('/images/back.png') center / cover no-repeat;
   color: #e9f8ff;
-  border-color: rgba(177, 224, 246, 0.45);
+  border: 1px solid transparent;
+  outline: none;
+  box-shadow: none;
   font-family: 'Zen Maru Gothic', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
 }
 
@@ -132,11 +134,21 @@
   background: transparent;
 }
 
+
 .page-card .stage-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
+  align-items: flex-start;
   margin-top: 10px;
+}
+
+.page-card .stage-actions .test-play-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: -7px;
 }
 
 .page-card .stage-actions .button {
@@ -152,7 +164,47 @@
 }
 
 .page-card .stage-actions .button.secondary:hover {
-  background: rgba(217, 239, 252, 0.92);
+  background: #d9effceb;
+}
+
+.page-card .stage-actions .test-play-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  position: relative;
+  z-index: 0;
+  background: transparent;
+  color: #0f3f5a;
+}
+
+.page-card .stage-actions .test-play-button::before {
+  content: '';
+  position: absolute;
+  inset: -3px -5px;
+  z-index: -1;
+  background: url('/images/water2.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-actions .test-play-button:hover {
+  border-color: transparent;
+  color: #0c3348;
+}
+
+.page-card .stage-actions .test-play-button:hover::before {
+  filter: brightness(0.98);
+}
+
+.page-card .stage-actions .test-play-under-image {
+  width: 96px;
+  height: 12px;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .page-card .stage-actions .stage-delete-button {
@@ -165,13 +217,36 @@
   background: rgba(255, 214, 214, 0.92);
 }
 
+.page-card .stage-actions .action-with-label {
+  position: relative;
+  z-index: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.page-card .stage-actions .action-with-label::before {
+  content: '';
+  position: absolute;
+  inset: -3px -5px;
+  z-index: -1;
+  background: url('/images/water1.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-actions .action-with-label:hover,
+.page-card .stage-actions .action-with-label:focus-visible {
+  background: transparent;
+  border-color: transparent;
+}
+
+.page-card .stage-actions .action-with-label:hover::before,
+.page-card .stage-actions .action-with-label:focus-visible::before {
+  filter: brightness(0.98);
+}
+
 .page-card .stage-actions .button svg {
   width: 16px;
   height: 16px;
-}
-
-.page-card .stage-actions .action-with-label {
-  position: relative;
 }
 
 .page-card .stage-actions .action-label {
@@ -201,6 +276,7 @@
   align-items: center;
   gap: 8px;
   margin: 8px 0 4px;
+  margin-left: 20px;
 }
 
 .page-card .sort-select-wrap {
@@ -211,7 +287,7 @@
 
 .page-card .sort-controls .sort-key-icon {
   position: absolute;
-  left: 8px;
+  left: 14px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -232,10 +308,28 @@
   margin: 8px 0 4px;
 }
 
+.page-card .search-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-card .search-controls .search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #12435d;
+}
+
+.page-card .search-controls .search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .page-card .search-controls input {
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 4px 8px;
+  padding: 4px 16px;
   background: url('/images/paper.png') center / cover no-repeat;
   background-position: 40% center;
   color: #12435d;
@@ -248,50 +342,52 @@
 
 .page-card .search-controls input:focus,
 .page-card .search-controls input:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls select {
+  width: 140px;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 4px 8px;
-  background: url('/images/paper.png') center / cover no-repeat;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: url('/images/paper.png') center / 100% 100% no-repeat;
   color: #12435d;
 }
 
 .page-card .sort-controls select:focus,
 .page-card .sort-controls select:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
+
 .page-card .sort-controls select.with-icon {
-  padding-left: 30px;
+  padding-left: 46px;
 }
 
 .page-card .sort-controls .sort-order-button {
   margin-left: auto;
   margin-right: 32px;
-  padding: 4px 8px;
+  min-height: 40px;
+  padding: 8px 16px;
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid transparent;
-  background: url('/images/paper.png') center / cover no-repeat;
+  background: url('/images/paper.png') center / 100% 100% no-repeat;
   color: #1a5370;
 }
 
 .page-card .sort-controls .sort-order-button:focus,
 .page-card .sort-controls .sort-order-button:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
+
 
 .page-card .sort-controls .sort-order-button svg {
   width: 14px;
@@ -330,7 +426,7 @@
 
 .page-card .stage-create-card {
   width: 100%;
-  height: 240px;
+  height: 200px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -452,19 +548,40 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 0;
+  padding: 2px 5px;
   line-height: 1;
+  position: relative;
+  z-index: 0;
+}
+
+.page-card .stage-favorite-button::before {
+  content: '';
+  position: absolute;
+  inset: -4px -3px;
+  z-index: -1;
+  background: url('/images/biue.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-favorite-button:hover::before,
+.page-card .stage-favorite-button:focus-visible::before {
+  filter: brightness(0.98);
 }
 
 .page-card .stage-favorite-icon {
-  width: 12px;
-  height: 12px;
+  width: 4px;
+  height: 4px;
   display: block;
   object-fit: contain;
 }
 
+
 .page-card .stage-favorite-button.active {
   color: #e65072;
+}
+
+.page-card .stage-favorite-button.active::before {
+  background: url('/images/red.png') center / 100% 100% no-repeat;
 }
 
 .page-card .stage-favorite-button.inactive {
