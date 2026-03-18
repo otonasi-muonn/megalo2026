@@ -91,6 +91,7 @@ pnpm ccss:recipe-integrity
 `pnpm ccss:style-patch:contract` で、`style-patch` APIの契約（危険トークン拒否・範囲外拒否・`cssText` 非返却）を自動検証できます。
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:transpile-build` で、生成・同期・レシピ整合検証を一括実行できます。
+PRでは `.github/workflows/ccss-checks.yml` が走り、上記CCSS検証 + frontend build + backend typecheck を実行します。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
