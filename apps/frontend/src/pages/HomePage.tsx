@@ -100,9 +100,7 @@ export const HomePage = () => {
 
       <section className="page-card">
         <h2 className="page-heading">公開ステージ一覧</h2>
-        <p className="status-text">
-          最新の公開ステージをチェック！API: <code>GET /api/stages</code>
-        </p>
+        <p className="status-text">最新の公開ステージをチェック！</p>
 
         {isLoading && <p className="status-text">読み込み中...</p>}
 

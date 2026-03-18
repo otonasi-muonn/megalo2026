@@ -308,9 +308,7 @@ export const CreatePage = () => {
   return (
     <section className="page-card">
       <h1 className="page-heading">ステージ作成</h1>
-      <p className="status-text">
-        保存アクション時に <code>POST /api/stages</code> を実行します。
-      </p>
+      <p className="status-text">ギミックを配置してステージを作成します。</p>
 
       <ItemPalette />
 
@@ -387,7 +385,7 @@ export const CreatePage = () => {
         </button>
         {isTesting && (
           <p className="status-text">
-            プレイ中です。ゴールに到達すると公開可能になります。（デバッグ: C キー=クリア / F キー=失敗）
+            プレイ中です。ゴールに到達すると公開可能になります。
           </p>
         )}
       </div>

@@ -6,6 +6,44 @@ const REDIRECT_QUERY_KEY = 'redirect'
 const INTERNAL_REDIRECT_ORIGIN = 'https://redirect.local'
 const MAX_REDIRECT_PATH_LENGTH = 2048
 
+const safeDecodeURIComponent = (value: string): string | null => {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, ' '))
+  } catch {
+    return null
+  }
+}
+
+const getQueryParamFromSearch = (search: string, key: string): string | null => {
+  const query = search.startsWith('?') ? search.slice(1) : search
+  if (!query) {
+    return null
+  }
+
+  for (const pair of query.split('&')) {
+    if (!pair) {
+      continue
+    }
+    const separatorIndex = pair.indexOf('=')
+    const rawKey = separatorIndex >= 0 ? pair.slice(0, separatorIndex) : pair
+    const decodedKey = safeDecodeURIComponent(rawKey)
+    if (decodedKey !== key) {
+      continue
+    }
+
+    const rawValue = separatorIndex >= 0 ? pair.slice(separatorIndex + 1) : ''
+    const decodedValue = safeDecodeURIComponent(rawValue)
+    return decodedValue ?? null
+  }
+
+  return null
+}
+
+const buildQueryString = (entries: Record<string, string>): string =>
+  Object.entries(entries)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&')
+
 const hasControlCharacter = (value: string): boolean => {
   for (const char of value) {
     const code = char.charCodeAt(0)
@@ -69,20 +107,19 @@ export const getRedirectPathFromSearch = (
   search: string,
   fallback = DEFAULT_AUTH_REDIRECT_PATH,
 ): string => {
-  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
-  return resolveRedirectPath(params.get(REDIRECT_QUERY_KEY), fallback)
+  return resolveRedirectPath(getQueryParamFromSearch(search, REDIRECT_QUERY_KEY), fallback)
 }
 
 export const buildLoginPath = (redirectPath: string): string => {
-  const params = new URLSearchParams({
+  const query = buildQueryString({
     [REDIRECT_QUERY_KEY]: resolveRedirectPath(redirectPath),
   })
-  return `${LOGIN_PATH}?${params.toString()}`
+  return `${LOGIN_PATH}?${query}`
 }
 
 export const buildAuthCallbackUrl = (redirectPath: string): string => {
-  const params = new URLSearchParams({
+  const query = buildQueryString({
     [REDIRECT_QUERY_KEY]: resolveRedirectPath(redirectPath),
   })
-  return `${window.location.origin}${AUTH_CALLBACK_PATH}?${params.toString()}`
+  return `${window.location.origin}${AUTH_CALLBACK_PATH}?${query}`
 }

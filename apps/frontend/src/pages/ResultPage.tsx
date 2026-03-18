@@ -112,8 +112,7 @@ export const ResultPage = ({
     <section className="page-card">
       <h1 className="page-heading">リザルト</h1>
       <p className="status-text">
-        判定: <strong>{cleared ? 'クリア' : '失敗'}</strong> / API:{' '}
-        <code>POST /api/stages/:id/play_logs</code>
+        判定: <strong>{cleared ? 'クリア' : '失敗'}</strong>
       </p>
 
       {isSubmitting && <p className="status-text">プレイログ送信中...</p>}

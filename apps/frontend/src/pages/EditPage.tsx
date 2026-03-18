@@ -130,8 +130,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
     <section className="page-card">
       <h1 className="page-heading">ステージ編集</h1>
       <p className="status-text">
-        対象ID: <code>{stageId}</code> / API: <code>GET /api/stages/:id</code> /{' '}
-        <code>PUT /api/stages/:id</code>
+        編集中のステージID: <code>{stageId}</code>
       </p>
 
       {isLoading && <p className="status-text">読み込み中...</p>}
@@ -159,7 +158,6 @@ export const EditPage = ({ stageId }: EditPageProps) => {
             {isTesting && (
               <p className="status-text">
                 プレイ中です。ゴールに到達すると公開可能になります。
-                （デバッグ: C キー=クリア / F キー=失敗）
               </p>
             )}
           </div>

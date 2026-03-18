@@ -16,9 +16,28 @@ interface PlayPageProps {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
+const RESULT_QUERY_KEYS = new Set([
+  'stageId',
+  'cleared',
+  'logStatus',
+  'playLogId',
+  'playCount',
+  'clearCount',
+  'logError',
+])
+
 const buildResultPath = (params: Record<string, string>): string => {
-  const searchParams = new URLSearchParams(params)
-  return `/result?${searchParams.toString()}`
+  const searchParts: string[] = []
+  for (const [key, value] of Object.entries(params)) {
+    if (!RESULT_QUERY_KEYS.has(key)) {
+      continue
+    }
+    searchParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+  }
+  if (searchParts.length === 0) {
+    return '/result'
+  }
+  return `/result?${searchParts.join('&')}`
 }
 
 export const PlayPage = ({ stageId }: PlayPageProps) => {
@@ -168,10 +187,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
   return (
     <section className="page-card">
       <h1 className="page-heading">プレイ画面</h1>
-      <p className="status-text">
-        API: <code>GET /api/stages/:id</code> / <code>POST /api/stages/:id/likes</code> /{' '}
-        <code>POST /api/stages/:id/play_logs</code>
-      </p>
+      <p className="status-text">ステージを読み込み中です。ゴール到達で結果画面へ移動します。</p>
 
       {isLoading && <p className="status-text">ステージ読込中...</p>}
 
@@ -182,10 +198,6 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
             play: {stage.play_count} / clear: {stage.clear_count} / like: {stage.like_count}
           </p>
 
-          <p className="status-text">
-            キャンバスの初期化済み（<code>useKAPLAY</code>）。デモ用に C キーでクリア、
-            F キーで失敗を発火できます。
-          </p>
           {isFinishingPlay && <p className="status-text">プレイログを送信して結果画面へ移動中です...</p>}
 
           <div className="canvas-wrapper">
@@ -200,26 +212,6 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
               disabled={isTogglingLike || isFinishingPlay}
             >
               {isTogglingLike ? '送信中...' : 'いいねトグル'}
-            </button>
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                void handleFinishPlay(true)
-              }}
-              disabled={isFinishingPlay}
-            >
-              クリアして結果へ
-            </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => {
-                void handleFinishPlay(false)
-              }}
-              disabled={isFinishingPlay}
-            >
-              失敗して結果へ
             </button>
           </div>
 

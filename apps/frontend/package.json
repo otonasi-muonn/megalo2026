@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run dev:vite",
-    "dev:vite": "vite",
-    "dev:ccss": "vite --mode ccss",
+    "dev:vite": "vite --host 127.0.0.1",
+    "dev:ccss": "vite --host 127.0.0.1 --mode ccss",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
