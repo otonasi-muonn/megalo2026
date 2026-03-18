@@ -10,6 +10,10 @@ interface AuthCallbackPageProps {
   redirectPath: string
 }
 
+const SESSION_POLL_INTERVAL_MS = 400
+const SESSION_POLL_MAX_ATTEMPTS = 20
+const SESSION_HARD_TIMEOUT_MS = 12000
+
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
@@ -24,42 +28,108 @@ export const AuthCallbackPage = ({ redirectPath }: AuthCallbackPageProps) => {
 
     const supabase = getSupabaseClient()
     let isMounted = true
-    const timeoutId = window.setTimeout(() => {
-      if (!isMounted) {
-        return
-      }
-      setErrorMessage('ログイン状態の確認に時間がかかっています。もう一度お試しください。')
-    }, 10000)
+    let isSettled = false
+    let isPolling = false
+    let pollAttempts = 0
+    let pollTimerId: number | undefined
+    let timeoutId: number | undefined
+    let unsubscribe: (() => void) | undefined
 
-    const resolveSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession()
-        if (!isMounted) {
-          return
-        }
-        if (error) {
-          throw new Error(error.message)
-        }
-        if (data.session) {
-          navigate(redirectPath, { replace: true })
-          return
-        }
-        navigate(buildLoginPath(redirectPath), { replace: true })
-      } catch (error) {
-        if (!isMounted) {
-          return
-        }
-        setErrorMessage(`ログイン状態の確認に失敗しました。${getErrorMessage(error)}`)
-      } finally {
+    const cleanupWatchers = () => {
+      if (pollTimerId !== undefined) {
+        window.clearInterval(pollTimerId)
+        pollTimerId = undefined
+      }
+      if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId)
+        timeoutId = undefined
+      }
+      if (unsubscribe) {
+        unsubscribe()
+        unsubscribe = undefined
       }
     }
 
-    void resolveSession()
+    const settleWithSession = (isAuthenticated: boolean) => {
+      if (!isMounted || isSettled) {
+        return
+      }
+      isSettled = true
+      cleanupWatchers()
+      if (isAuthenticated) {
+        navigate(redirectPath, { replace: true })
+        return
+      }
+      navigate(buildLoginPath(redirectPath), { replace: true })
+    }
+
+    const settleWithError = (message: string) => {
+      if (!isMounted || isSettled) {
+        return
+      }
+      isSettled = true
+      cleanupWatchers()
+      setErrorMessage(message)
+    }
+
+    const checkSessionOnce = async (): Promise<boolean | null> => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) {
+          throw new Error(error.message)
+        }
+        return Boolean(data.session)
+      } catch (error) {
+        settleWithError(`ログイン状態の確認に失敗しました。${getErrorMessage(error)}`)
+        return null
+      }
+    }
+
+    const pollSession = async () => {
+      if (!isMounted || isSettled || isPolling) {
+        return
+      }
+      isPolling = true
+      pollAttempts += 1
+      const hasSession = await checkSessionOnce()
+      isPolling = false
+      if (!isMounted || isSettled || hasSession === null) {
+        return
+      }
+      if (hasSession) {
+        settleWithSession(true)
+        return
+      }
+      if (pollAttempts >= SESSION_POLL_MAX_ATTEMPTS) {
+        settleWithSession(false)
+      }
+    }
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!isMounted || isSettled) {
+        return
+      }
+      if (newSession) {
+        settleWithSession(true)
+        return
+      }
+      if (event === 'SIGNED_OUT') {
+        settleWithSession(false)
+      }
+    })
+    unsubscribe = () => listener.subscription.unsubscribe()
+
+    pollTimerId = window.setInterval(() => {
+      void pollSession()
+    }, SESSION_POLL_INTERVAL_MS)
+    timeoutId = window.setTimeout(() => {
+      settleWithError('ログイン状態の確認に時間がかかっています。もう一度お試しください。')
+    }, SESSION_HARD_TIMEOUT_MS)
+    void pollSession()
 
     return () => {
       isMounted = false
-      window.clearTimeout(timeoutId)
+      cleanupWatchers()
     }
   }, [redirectPath])
 

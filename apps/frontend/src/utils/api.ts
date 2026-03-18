@@ -1,6 +1,5 @@
 import { getAccessToken } from '../features/auth/authActions'
 
-
 type QueryValue = string | number | boolean | null | undefined
 
 interface RequestOptions {
@@ -38,7 +37,7 @@ const requestJson = async <TResponse>(
     'Content-Type': 'application/json',
   }
 
-  if (options.withAuth !== false) {
+  if (options.withAuth) {
     const token = await getAccessToken()
     if (token) {
       headers['Authorization'] = `Bearer ${token}`

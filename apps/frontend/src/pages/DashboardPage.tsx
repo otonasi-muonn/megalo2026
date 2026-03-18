@@ -169,6 +169,7 @@ export const DashboardPage = () => {
 
         const profileResponse = await apiGet<ProfileResponse>('/api/profiles/me', {
           signal: controller.signal,
+          withAuth: true,
         })
         setDisplayName(profileResponse.data.display_name)
 
@@ -179,6 +180,7 @@ export const DashboardPage = () => {
             limit: 10,
           },
           signal: controller.signal,
+          withAuth: true,
         })
 
         setStages(stageResponse.data.map((stage) => ({ ...stage, isMock: false })))
