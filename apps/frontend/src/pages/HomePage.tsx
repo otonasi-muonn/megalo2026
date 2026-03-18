@@ -58,20 +58,27 @@ export const HomePage = () => {
     <>
       <section className="hero-section">
         <div className="hero-container">
-          <h1 className="hero-title">megalo2026へようこそ</h1>
-          <p className="hero-subtitle">ステージを作成してシェアしよう</p>
           <nav className="hero-nav">
             <AppLink to="/play/featured" className="button hero-button play-button">
-              <span className="button-icon">🎮</span>
-              <span>Play</span>
+              <img
+                src="/images/playbutton.png"
+                alt="Play"
+                className="hero-button-image"
+              />
             </AppLink>
             <AppLink to="/create" className="button hero-button create-button">
-              <span className="button-icon">✏️</span>
-              <span>Create</span>
+              <img
+                src="/images/createbutton.png"
+                alt="Create"
+                className="hero-button-image"
+              />
             </AppLink>
             <AppLink to="/dashboard" className="button hero-button dashboard-button">
-              <span className="button-icon">📊</span>
-              <span>My Stages</span>
+              <img
+                src="/images/mystagebutton.png"
+                alt="My Stages"
+                className="hero-button-image"
+              />
             </AppLink>
           </nav>
         </div>

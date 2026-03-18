@@ -1,7 +1,14 @@
 .hero-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-image: url('/images/home_haikei.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-radius: 16px;
-  padding: 48px 24px;
+  min-height: 56vh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: #ffffff;
 }
@@ -10,7 +17,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 0;
+  width: 100%;
 }
 
 .hero-title {
@@ -29,88 +37,98 @@
 
 .hero-nav {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 24px;
+  flex-wrap: nowrap;
   justify-content: center;
+  margin-top: 0;
+  transform: translateY(14vh);
 }
 
 .hero-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 10px;
+  gap: 10px;
+  padding: 10px 24px;
+  min-width: 0;
+  border-radius: 12px;
   text-decoration: none;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
+  font-size: 26px;
+  font-weight: 700;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
 }
 
+.hero-button:focus,
+.hero-button:focus-visible,
+.hero-button:active {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.hero-button img {
+  max-height: 75px;
+  height: auto;
+  width: auto;
+}
+
 .button-icon {
-  font-size: 20px;
+  font-size: 28px;
 }
 
 .play-button {
-  background: #10b981;
+  background: transparent;
   color: #ffffff;
-  border: 2px solid #059669;
+  border: none;
 }
 
 .play-button:hover {
-  background: #059669;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+  transform: scale(1.05);
 }
 
 .create-button {
-  background: #f59e0b;
+  background: transparent;
   color: #ffffff;
-  border: 2px solid #d97706;
+  border: none;
 }
 
 .create-button:hover {
-  background: #d97706;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+  transform: scale(1.05);
 }
 
 .dashboard-button {
-  background: #3b82f6;
+  background: transparent;
   color: #ffffff;
-  border: 2px solid #1d4ed8;
+  border: none;
 }
 
 .dashboard-button:hover {
-  background: #1d4ed8;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+  transform: scale(1.05);
 }
 
 @media (max-width: 640px) {
   .hero-section {
-    padding: 32px 16px;
-  }
-
-  .hero-title {
-    font-size: 32px;
-  }
-
-  .hero-subtitle {
-    font-size: 16px;
+    min-height: 44vh;
+    padding: 16px;
   }
 
   .hero-nav {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: nowrap;
     width: 100%;
+    transform: translateY(9vh);
+    gap: 12px;
   }
 
   .hero-button {
-    width: 100%;
-    padding: 12px 16px;
+    width: auto;
+    min-width: 0;
+    padding: 12px 18px;
+    font-size: 16px;
   }
 
   .button-icon {
