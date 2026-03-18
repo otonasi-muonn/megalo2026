@@ -1,10 +1,11 @@
 begin;
 
 -- 公式アカウント用ユーザー（auth.usersに先に挿入）
+-- NOTE: このseed.sqlはローカル開発専用。本番・ステージング環境には投入しないこと。
 insert into auth.users (
   id,
   email,
-  encrypted_password,
+  encrypted_password, -- ローカル開発用のため空文字。本番には投入しないこと
   email_confirmed_at,
   created_at,
   updated_at,
@@ -37,21 +38,6 @@ values (
   now()
 )
 on conflict (id) do nothing;
-
--- チュートリアル1: はじめての風
--- レイアウト（ワールド 1920x1080）:
---
---  プレイヤー半径=24, 直径=48px。穴の幅=100px（直径の約2倍）
---
---  [spawn]  縦壁1        縦壁2        縦壁3   [goal]
---           |  上部       |  上部       |  上部
---           |             |  穴(y:380)  |
---           |  穴(y:540)  |             |  穴(y:240)
---           |             |  下部       |
---           |  下部        |            |  下部
---  ─────────────────────────────────────────────  床(y:960)
---
--- 穴の高さを 上→中→下 と変化させ、風で高さを合わせながら通り抜ける操作を学ぶ
 
 insert into public.stages (id, author_id, title, stage_data, is_published, created_at, updated_at)
 values (
@@ -144,20 +130,6 @@ on conflict (id) do update set
   stage_data = excluded.stage_data,
   is_published = excluded.is_published,
   updated_at = now();
-
--- チュートリアル2: トゲをよけろ
--- レイアウト（ワールド 1920x1080）:
---
---  [spawn]
---  ─────────── 天井壁(y:60) ───────────────────────────────
---
---   通路1        通路2        通路3       バネ    [goal]
---  ↑トゲ床      ↑トゲ天井    ↑トゲ床中央
---
---  ─────────── 床壁(y:960) ────────────────────────────────
---
--- 各ゾーンで「上に避ける」「下に避ける」「真ん中を通る」と変化させる
--- 最後にバネで弾き上げてゴールへ
 
 insert into public.stages (id, author_id, title, stage_data, is_published, created_at, updated_at)
 values (
