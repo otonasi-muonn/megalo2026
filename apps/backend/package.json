@@ -5,7 +5,8 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "ccss:style-patch:contract": "tsx scripts/ccss-style-patch-contract.ts",
-    "ccss:recipe-integrity": "tsx scripts/ccss-recipe-integrity-check.ts"
+    "ccss:recipe-integrity": "tsx scripts/ccss-recipe-integrity-check.ts",
+    "ccss:smoke": "tsx scripts/ccss-api-smoke-test.ts"
   },
   "dependencies": {
     "@ccss/compiler": "workspace:*",

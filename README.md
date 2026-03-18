@@ -75,6 +75,7 @@ pnpm ccss:dom-isolation
 pnpm ccss:transpile-build
 pnpm ccss:style-patch:contract
 pnpm ccss:recipe-integrity
+pnpm ccss:smoke
 ```
 
 `pnpm ccss:compiler:sample` 実行後、以下が生成されます。
@@ -93,6 +94,7 @@ pnpm ccss:recipe-integrity
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:dom-isolation` で、生成UIへの `<canvas>` / `#ccss-game-root` 混入を検出できます。
 `pnpm ccss:transpile-build` で、生成・同期・レシピ整合検証を一括実行できます。
+`pnpm ccss:smoke` で、CCSS APIの最小疎通（style-patch正常系 / transpile validate認証境界）を検証できます。
 PRでは `.github/workflows/ccss-checks.yml` が走り、上記CCSS検証 + frontend build + backend typecheck を実行します。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）

@@ -41,6 +41,9 @@ jobs:
       - name: Check style-patch contract
         run: pnpm ccss:style-patch:contract
 
+      - name: Smoke test CCSS API
+        run: pnpm ccss:smoke
+
       - name: Lint frontend
         run: pnpm --filter frontend lint
 
