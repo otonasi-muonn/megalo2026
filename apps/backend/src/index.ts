@@ -30,6 +30,10 @@ type CcssClassListItem = {
 
 const STAGE_LIST_SELECT =
   'id,author_id,title,is_published,play_count,clear_count,like_count,created_at,updated_at'
+const CCSS_STYLE_PATCH_AUDIT_SELECT =
+  'id,request_id,view,state_id,applied_recipe_ids,resolved_class_list,ruleset_version,ttl_ms,rejection_code,created_by,created_at'
+const CCSS_STATE_EVENT_AUDIT_SELECT =
+  'id,session_key,state_id,event_name,request_id,patch_id,payload,created_by,created_at'
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const CCSS_STATE_ID_PATTERN = /^ccss:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/
@@ -1273,7 +1277,7 @@ app.get('/api/ccss/audit/style-patches', requireCcssAdmin, async (c) => {
 
   let query = supabase
     .from('ccss_style_patches')
-    .select('id,request_id,view,state_id,applied_recipe_ids,resolved_class_list,ruleset_version,ttl_ms,rejection_code,created_by,created_at')
+    .select(CCSS_STYLE_PATCH_AUDIT_SELECT)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -1324,7 +1328,7 @@ app.get('/api/ccss/audit/state-events', requireCcssAdmin, async (c) => {
 
   let query = supabase
     .from('ccss_state_events')
-    .select('id,session_key,state_id,event_name,request_id,patch_id,payload,created_by,created_at')
+    .select(CCSS_STATE_EVENT_AUDIT_SELECT)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -1349,6 +1353,162 @@ app.get('/api/ccss/audit/state-events', requireCcssAdmin, async (c) => {
     return dbError(c, error, 'state-events監査ログの取得に失敗しました')
   }
   return c.json({ data: data ?? [] })
+})
+
+app.get('/api/ccss/audit/session-trace', requireCcssAdmin, async (c) => {
+  const rawSessionKey = c.req.query('sessionKey')
+  if (typeof rawSessionKey !== 'string' || rawSessionKey.trim().length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_SESSION_KEY',
+      'sessionKey は空でない文字列で指定してください。',
+      '例: ccss-poc-session-001',
+    )
+  }
+  const sessionKey = rawSessionKey.trim()
+
+  const limit = parseQueryLimit(c, c.req.query('limit'), 100)
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const { data: stateEvents, error: stateEventsError } = await supabase
+    .from('ccss_state_events')
+    .select(CCSS_STATE_EVENT_AUDIT_SELECT)
+    .eq('session_key', sessionKey)
+    .order('created_at', { ascending: true })
+    .limit(limit)
+
+  if (stateEventsError) {
+    return dbError(c, stateEventsError, 'state-eventsセッショントレースの取得に失敗しました')
+  }
+
+  const events = stateEvents ?? []
+  const patchIds = Array.from(
+    new Set(
+      events
+        .map((event) => event.patch_id)
+        .filter((patchId): patchId is string => typeof patchId === 'string' && patchId.length > 0),
+    ),
+  )
+  const requestIds = Array.from(
+    new Set(
+      events
+        .map((event) => event.request_id)
+        .filter((requestId): requestId is string => typeof requestId === 'string' && requestId.length > 0),
+    ),
+  )
+
+  type SessionTracePatchRecord = {
+    id: string
+    request_id: string
+    view: string
+    state_id: string
+    applied_recipe_ids: string[]
+    rejection_code: string | null
+    created_at: string
+  }
+  const toSessionTracePatchRecord = (patch: {
+    id: string
+    request_id: string
+    view: string
+    state_id: string
+    applied_recipe_ids: string[]
+    rejection_code: string | null
+    created_at: string
+  }): SessionTracePatchRecord => ({
+    id: patch.id,
+    request_id: patch.request_id,
+    view: patch.view,
+    state_id: patch.state_id,
+    applied_recipe_ids: patch.applied_recipe_ids,
+    rejection_code: patch.rejection_code,
+    created_at: patch.created_at,
+  })
+  const patchesById = new Map<string, SessionTracePatchRecord>()
+  const patchesByRequestId = new Map<string, SessionTracePatchRecord>()
+
+  if (patchIds.length > 0) {
+    const { data: patchesByPatchId, error: patchesByPatchIdError } = await supabase
+      .from('ccss_style_patches')
+      .select(CCSS_STYLE_PATCH_AUDIT_SELECT)
+      .in('id', patchIds)
+
+    if (patchesByPatchIdError) {
+      return dbError(c, patchesByPatchIdError, 'style-patch相関情報の取得に失敗しました')
+    }
+
+    for (const patch of patchesByPatchId ?? []) {
+      const normalizedPatch = toSessionTracePatchRecord(patch)
+      patchesById.set(normalizedPatch.id, normalizedPatch)
+      if (!patchesByRequestId.has(normalizedPatch.request_id)) {
+        patchesByRequestId.set(normalizedPatch.request_id, normalizedPatch)
+      }
+    }
+  }
+
+  const requestIdsForLookup = requestIds.filter((requestId) => !patchesByRequestId.has(requestId))
+  if (requestIdsForLookup.length > 0) {
+    const { data: patchesByRequestIdRows, error: patchesByRequestIdError } = await supabase
+      .from('ccss_style_patches')
+      .select(CCSS_STYLE_PATCH_AUDIT_SELECT)
+      .in('request_id', requestIdsForLookup)
+
+    if (patchesByRequestIdError) {
+      return dbError(c, patchesByRequestIdError, 'request_id相関のstyle-patch取得に失敗しました')
+    }
+
+    for (const patch of patchesByRequestIdRows ?? []) {
+      const normalizedPatch = toSessionTracePatchRecord(patch)
+      patchesById.set(normalizedPatch.id, normalizedPatch)
+      if (!patchesByRequestId.has(normalizedPatch.request_id)) {
+        patchesByRequestId.set(normalizedPatch.request_id, normalizedPatch)
+      }
+    }
+  }
+
+  const timeline = events.map((event) => {
+    const patchFromPatchId =
+      event.patch_id && event.patch_id.length > 0 ? patchesById.get(event.patch_id) : undefined
+    const patchFromRequestId =
+      !patchFromPatchId && event.request_id ? patchesByRequestId.get(event.request_id) : undefined
+    const matchedPatch = patchFromPatchId ?? patchFromRequestId
+
+    return {
+      eventId: event.id,
+      createdAt: event.created_at,
+      sessionKey: event.session_key,
+      stateId: event.state_id,
+      eventName: event.event_name,
+      requestId: event.request_id,
+      patchId: event.patch_id,
+      payload: event.payload,
+      correlation: patchFromPatchId ? 'patch_id' : patchFromRequestId ? 'request_id' : null,
+      patch: matchedPatch
+        ? {
+            patchId: matchedPatch.id,
+            requestId: matchedPatch.request_id,
+            view: matchedPatch.view,
+            stateId: matchedPatch.state_id,
+            appliedRecipeIds: matchedPatch.applied_recipe_ids,
+            rejectionCode: matchedPatch.rejection_code,
+            createdAt: matchedPatch.created_at,
+          }
+        : null,
+    }
+  })
+
+  const correlatedPatchCount = timeline.reduce((count, item) => count + (item.patch ? 1 : 0), 0)
+  return c.json({
+    sessionKey,
+    data: timeline,
+    stats: {
+      eventCount: timeline.length,
+      correlatedPatchCount,
+      uncorrelatedEventCount: timeline.length - correlatedPatchCount,
+    },
+  })
 })
 
 app.get('/api/ccss/audit/transpile-jobs', requireCcssAdmin, async (c) => {

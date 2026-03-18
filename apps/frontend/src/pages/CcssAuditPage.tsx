@@ -33,6 +33,37 @@ type StateEventAuditRecord = {
   created_at: string
 }
 
+type SessionTraceItem = {
+  eventId: string
+  createdAt: string
+  sessionKey: string
+  stateId: string
+  eventName: string
+  requestId: string | null
+  patchId: string | null
+  payload: Record<string, unknown>
+  correlation: 'patch_id' | 'request_id' | null
+  patch: {
+    patchId: string
+    requestId: string
+    view: string
+    stateId: string
+    appliedRecipeIds: string[]
+    rejectionCode: string | null
+    createdAt: string
+  } | null
+}
+
+type SessionTraceResponse = {
+  sessionKey: string
+  data: SessionTraceItem[]
+  stats: {
+    eventCount: number
+    correlatedPatchCount: number
+    uncorrelatedEventCount: number
+  }
+}
+
 type AuditListResponse<TRecord> = {
   data: TRecord[]
 }
@@ -77,6 +108,9 @@ export const CcssAuditPage = () => {
   const [stylePatches, setStylePatches] = useState<StylePatchAuditRecord[]>([])
   const [transpileJobs, setTranspileJobs] = useState<TranspileAuditRecord[]>([])
   const [stateEvents, setStateEvents] = useState<StateEventAuditRecord[]>([])
+  const [sessionTrace, setSessionTrace] = useState<SessionTraceItem[]>([])
+  const [sessionTraceSessionKey, setSessionTraceSessionKey] = useState<string | null>(null)
+  const [sessionTraceStats, setSessionTraceStats] = useState<SessionTraceResponse['stats'] | null>(null)
 
   const authHeaders = useMemo(() => {
     const trimmed = bearerToken.trim()
@@ -101,7 +135,8 @@ export const CcssAuditPage = () => {
       setIsLoading(true)
       setErrorMessage(null)
 
-      const [stylePatchResponse, transpileResponse, stateEventResponse] = await Promise.all([
+      const sessionTraceTarget = toQueryString(eventSessionFilter)
+      const [stylePatchResponse, transpileResponse, stateEventResponse, sessionTraceResponse] = await Promise.all([
         apiGet<AuditListResponse<StylePatchAuditRecord>>('/api/ccss/audit/style-patches', {
           query: {
             limit: parsedLimit,
@@ -131,11 +166,29 @@ export const CcssAuditPage = () => {
           },
           headers: authHeaders,
         }),
+        sessionTraceTarget
+          ? apiGet<SessionTraceResponse>('/api/ccss/audit/session-trace', {
+              query: {
+                limit: parsedLimit,
+                sessionKey: sessionTraceTarget,
+              },
+              headers: authHeaders,
+            })
+          : Promise.resolve(null),
       ])
 
       setStylePatches(stylePatchResponse.data)
       setTranspileJobs(transpileResponse.data)
       setStateEvents(stateEventResponse.data)
+      if (sessionTraceResponse) {
+        setSessionTraceSessionKey(sessionTraceResponse.sessionKey)
+        setSessionTrace(sessionTraceResponse.data)
+        setSessionTraceStats(sessionTraceResponse.stats)
+      } else {
+        setSessionTraceSessionKey(null)
+        setSessionTrace([])
+        setSessionTraceStats(null)
+      }
       setLastLoadedAt(new Date().toLocaleString('ja-JP'))
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
@@ -163,7 +216,7 @@ export const CcssAuditPage = () => {
       <h1 className="page-heading">CCSS 監査ログビュー</h1>
       <p className="status-text">
         管理者API（<code>/api/ccss/audit/*</code>）から
-        style-patch / transpile / state-events の監査ログを確認します。
+        style-patch / transpile / state-events / session-trace の監査ログを確認します。
       </p>
 
       <div className="ccss-audit-controls">
@@ -316,6 +369,36 @@ export const CcssAuditPage = () => {
               {' '} / event: {record.event_name} / state: {record.state_id}
               {' '} / request: {record.request_id ?? '-'} / patch: {record.patch_id ?? '-'}
               {' '} / payload: {summarizePayload(record.payload)}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="ccss-audit-section">
+        <h2 className="sub-heading">session trace（state → patch → recipes）</h2>
+        {!sessionTraceSessionKey && (
+          <p className="status-text">
+            `state-events フィルタ` の <code>sessionKey</code> を入力して取得すると、相関済みトレースを表示します。
+          </p>
+        )}
+        {sessionTraceSessionKey && sessionTraceStats && (
+          <p className="status-text">
+            session: <strong>{sessionTraceSessionKey}</strong> / events: {sessionTraceStats.eventCount}
+            {' '} / correlated: {sessionTraceStats.correlatedPatchCount}
+            {' '} / uncorrelated: {sessionTraceStats.uncorrelatedEventCount}
+          </p>
+        )}
+        <ul className="ccss-audit-list">
+          {sessionTraceSessionKey && sessionTrace.length === 0 && (
+            <li className="ccss-audit-empty">このsessionKeyのトレースデータはありません。</li>
+          )}
+          {sessionTrace.map((item) => (
+            <li key={item.eventId}>
+              <strong>{item.createdAt}</strong> / event: {item.eventName} / state: {item.stateId}
+              {' '} / request: {item.requestId ?? '-'} / patch: {item.patchId ?? '-'}
+              {item.patch
+                ? ` / correlation: ${item.correlation ?? '-'} / recipes: ${item.patch.appliedRecipeIds.length}`
+                : ' / correlation: - / recipes: 0'}
             </li>
           ))}
         </ul>

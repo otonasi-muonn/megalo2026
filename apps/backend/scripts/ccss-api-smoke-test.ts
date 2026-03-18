@@ -94,6 +94,15 @@ const main = async (): Promise<void> => {
     `監査state-events API 無認証ステータスが想定外です: ${auditStateEventsNoAuth.response.status}`,
   )
 
+  const sessionTraceNoAuth = await requestGet(
+    app,
+    '/api/ccss/audit/session-trace?sessionKey=ccss-smoke-session&limit=5',
+  )
+  assert(
+    sessionTraceNoAuth.response.status === 401,
+    `監査session-trace API 無認証ステータスが想定外です: ${sessionTraceNoAuth.response.status}`,
+  )
+
   const validateNoAuth = await requestJson(app, '/api/ccss/transpile/validate', {
     source: 'export function X(){ return <div /> }',
     sourcePath: 'smoke.tsx',

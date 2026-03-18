@@ -99,6 +99,11 @@ pnpm dev
 - 用途: `state-events` 監査ログ一覧を取得
 - 主なクエリ: `limit`（1-200）, `sessionKey`, `stateId`, `eventName`, `requestId`, `patchId`
 
+`GET /api/ccss/audit/session-trace`（管理者認証必須）
+
+- 用途: 1セッション内の `state-events` と `style-patch` を相関し、`state -> patch -> appliedRecipeIds` の時系列を取得
+- 主なクエリ: `sessionKey`（必須）, `limit`（1-200）
+
 `POST /api/ccss/state-events`（認証任意）
 
 - 用途: UI状態遷移イベント（`ui:state:set` など）の監査ログ記録
