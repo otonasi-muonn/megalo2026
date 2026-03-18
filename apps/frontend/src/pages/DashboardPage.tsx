@@ -273,13 +273,16 @@ export const DashboardPage = () => {
           {sortedStages.length === 0 && <p className="status-text">作成したステージはまだありません。</p>}
           <ul className="stage-list">
             {sortedStages.map((stage) => (
-              <li key={stage.id} className="stage-item">
+              <li
+                key={stage.id}
+                className={`stage-item ${stage.title.startsWith('仮のステージ') ? 'stage-item-mock' : ''}`.trim()}
+              >
                 <div className="stage-card">
                   <div className="stage-image-area">
                     {stage.imageUrl ? (
                       <img src={stage.imageUrl} alt={`${stage.title}の画像`} className="stage-image" />
                     ) : (
-                      <div className="stage-image-placeholder">画像未設定</div>
+                      <div className="stage-image-placeholder" aria-hidden="true" />
                     )}
                     <input
                       id={`stage-image-upload-${stage.id}`}
