@@ -98,7 +98,7 @@ export const HomePage = () => {
         </div>
       </section>
 
-      <section className="page-card">
+      <section className="page-card home-stage-card">
         <h2 className="page-heading">公開ステージ一覧</h2>
         <p className="status-text">最新の公開ステージをチェック！</p>
 
@@ -119,8 +119,7 @@ export const HomePage = () => {
         {!isLoading && !errorMessage && (
           <>
             <p className="status-text">
-              取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}
-              ）
+              取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}）
             </p>
             <ul className="stage-list">
               {stages.map((stage) => (
@@ -128,8 +127,7 @@ export const HomePage = () => {
                   <div>
                     <strong>{stage.title}</strong>
                     <p className="meta-text">
-                      play: {stage.play_count} / clear: {stage.clear_count} / like:{' '}
-                      {stage.like_count}
+                      play: {stage.play_count} / clear: {stage.clear_count} / like: {stage.like_count}
                     </p>
                   </div>
                   <div className="inline-actions">
