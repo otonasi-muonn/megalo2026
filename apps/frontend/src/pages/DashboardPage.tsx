@@ -8,15 +8,16 @@ import { SpellCheck } from 'lucide-react'
 import type {
   Pagination,
   ProfileResponse,
+  StageDeleteResponse,
   StageListItemDto,
   StageListResponse,
 } from '../types/api'
-import { apiGet } from '../utils/api'
+import { apiDelete, apiGet } from '../utils/api'
+import { copyStagePlayUrl } from '../utils/stageShare'
 import './DashboardPage.css'
 
 type DashboardStage = StageListItemDto & {
   imageUrl?: string
-  isMock?: boolean
 }
 
 const initialPagination: Pagination = {
@@ -29,74 +30,22 @@ const initialPagination: Pagination = {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
-const mockStages: DashboardStage[] = [
-  {
-    id: '1',
-    author_id: 'mock-user-1',
-    title: '仮のステージ 1',
-    is_published: true,
-    play_count: 0,
-    clear_count: 0,
-    like_count: 8,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-    updated_at: new Date().toISOString(),
-    isMock: true,
-  },
-  {
-    id: '2',
-    author_id: 'mock-user-1',
-    title: '仮のステージ 2',
-    is_published: false,
-    play_count: 0,
-    clear_count: 0,
-    like_count: 2,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    updated_at: new Date().toISOString(),
-    isMock: true,
-  },
-  {
-    id: '3',
-    author_id: 'mock-user-1',
-    title: '仮のステージ 3',
-    is_published: true,
-    play_count: 0,
-    clear_count: 0,
-    like_count: 15,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-    updated_at: new Date().toISOString(),
-    isMock: true,
-  },
-  {
-    id: '4',
-    author_id: 'mock-user-1',
-    title: '仮のステージ 4',
-    is_published: false,
-    play_count: 0,
-    clear_count: 0,
-    like_count: 5,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-    isMock: true,
-  },
-]
-
 type StageSortKey = 'favorite' | 'created' | 'name'
 type SortOrder = 'desc' | 'asc'
 
 export const DashboardPage = () => {
   const [displayName, setDisplayName] = useState('未取得')
-  const [stages, setStages] = useState<DashboardStage[]>(mockStages) // 仮データを初期値に設定
-  const [pagination, setPagination] = useState<Pagination>({
-    ...initialPagination,
-    total: mockStages.length,
-    total_pages: 1,
-  })
+  const [stages, setStages] = useState<DashboardStage[]>([])
+  const [pagination, setPagination] = useState<Pagination>(initialPagination)
   const [sortKey, setSortKey] = useState<StageSortKey>('created')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [favoriteStageIds, setFavoriteStageIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeletingStageId, setIsDeletingStageId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(null)
 
   const filteredStages = stages.filter((stage) =>
     stage.title.toLowerCase().includes(searchKeyword.trim().toLowerCase())
@@ -133,13 +82,35 @@ export const DashboardPage = () => {
     })
   }
 
-  const handleDeleteStage = (stageId: string) => {
-    if (confirm('このステージを削除してもよろしいですか？')) {
+  const handleDeleteStage = async (stageId: string) => {
+    if (!window.confirm('このステージを削除してもよろしいですか？')) {
+      return
+    }
+
+    try {
+      setIsDeletingStageId(stageId)
+      setErrorMessage(null)
+      await apiDelete<StageDeleteResponse>(`/api/stages/${stageId}`, { withAuth: true })
       setStages((prevStages) => prevStages.filter((stage) => stage.id !== stageId))
       setPagination((prevPagination) => ({
         ...prevPagination,
-        total: prevPagination.total - 1,
+        total: Math.max(prevPagination.total - 1, 0),
       }))
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setIsDeletingStageId(null)
+    }
+  }
+
+  const handleCopyShareLink = async (stage: DashboardStage) => {
+    try {
+      const stageUrl = await copyStagePlayUrl(stage.id)
+      setShareMessage(`「${stage.title}」の共有リンクをコピーしました: ${stageUrl}`)
+      setShareErrorMessage(null)
+    } catch (error) {
+      setShareErrorMessage(getErrorMessage(error))
+      setShareMessage(null)
     }
   }
 
@@ -183,20 +154,15 @@ export const DashboardPage = () => {
           withAuth: true,
         })
 
-        setStages(stageResponse.data.map((stage) => ({ ...stage, isMock: false })))
+        setStages(stageResponse.data)
         setPagination(stageResponse.pagination)
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return
         }
         setErrorMessage(getErrorMessage(error))
-        // エラー時に仮データを使用
-        setStages(mockStages)
-        setPagination({
-          ...initialPagination,
-          total: mockStages.length,
-          total_pages: 1,
-        })
+        setStages([])
+        setPagination(initialPagination)
       } finally {
         setIsLoading(false)
       }
@@ -217,11 +183,17 @@ export const DashboardPage = () => {
       {isLoading && <p className="status-text">読み込み中...</p>}
       {errorMessage && (
         <p className="error-text" role="alert">
-          読み込み失敗: {errorMessage}
+          処理失敗: {errorMessage}
+        </p>
+      )}
+      {shareMessage && <p className="success-text">{shareMessage}</p>}
+      {shareErrorMessage && (
+        <p className="error-text" role="alert">
+          共有リンクのコピー失敗: {shareErrorMessage}
         </p>
       )}
 
-      {!isLoading && !errorMessage && (
+      {!isLoading && (
         <>
           <div className="dashboard-toolbar">
             <div className="dashboard-toolbar-left">
@@ -284,10 +256,7 @@ export const DashboardPage = () => {
           {sortedStages.length === 0 && <p className="status-text">作成したステージはまだありません。</p>}
           <ul className="stage-list">
             {sortedStages.map((stage) => (
-              <li
-                key={stage.id}
-                className={`stage-item ${stage.isMock ? 'stage-item-mock' : ''}`.trim()}
-              >
+              <li key={stage.id} className="stage-item">
                 <div className="stage-card">
                   <div className="stage-image-area">
                     {stage.imageUrl ? (
@@ -372,11 +341,26 @@ export const DashboardPage = () => {
                     テストプレイ
                   </AppLink>
                   <button
-                    onClick={() => handleDeleteStage(stage.id)}
+                    type="button"
+                    className="button secondary"
+                    onClick={() => {
+                      void handleCopyShareLink(stage)
+                    }}
+                  >
+                    共有リンク
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleDeleteStage(stage.id)
+                    }}
                     className="button secondary stage-delete-button action-with-label"
+                    disabled={isDeletingStageId === stage.id}
                   >
                     <Trash2 />
-                    <span className="action-label">消去</span>
+                    <span className="action-label">
+                      {isDeletingStageId === stage.id ? '削除中' : '消去'}
+                    </span>
                   </button>
                 </div>
               </li>

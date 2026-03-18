@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
 import type {
   LikeToggleResponse,
+  PlayLogResponse,
   StageDto,
   StageResponse,
 } from '../types/api'
@@ -16,13 +16,38 @@ interface PlayPageProps {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
+const buildResultPath = (params: Record<string, string>): string => {
+  const searchParams = new URLSearchParams(params)
+  return `/result?${searchParams.toString()}`
+}
+
 export const PlayPage = ({ stageId }: PlayPageProps) => {
   const [stage, setStage] = useState<StageDto | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isTogglingLike, setIsTogglingLike] = useState(false)
+  const [isFinishingPlay, setIsFinishingPlay] = useState(false)
   const [likeMessage, setLikeMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const finishingRef = useRef(false)
+  const isMountedRef = useRef(false)
+  const finishAbortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      finishAbortControllerRef.current?.abort()
+      finishAbortControllerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    finishingRef.current = false
+    setIsFinishingPlay(false)
+    finishAbortControllerRef.current?.abort()
+    finishAbortControllerRef.current = null
+  }, [stageId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -72,16 +97,66 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
     }
   }
 
-  const handleFinishPlay = useCallback((cleared: boolean) => {
+  const handleFinishPlay = useCallback(async (cleared: boolean) => {
     if (finishingRef.current) {
       return
     }
+
+    const finishController = new AbortController()
+    finishAbortControllerRef.current?.abort()
+    finishAbortControllerRef.current = finishController
+
     finishingRef.current = true
-    navigate(`/result?stageId=${encodeURIComponent(stageId)}&cleared=${String(cleared)}`)
-    // 結果遷移を優先し、ログはバックグラウンド送信する
-    void apiPost(`/api/stages/${stageId}/play_logs`, { is_cleared: cleared }).catch(() => {
-      // ログ送信失敗はゲーム体験に影響させない
-    })
+    setIsFinishingPlay(true)
+    setErrorMessage(null)
+
+    try {
+      const response = await apiPost<PlayLogResponse>(
+        `/api/stages/${stageId}/play_logs`,
+        { is_cleared: cleared },
+        { signal: finishController.signal },
+      )
+
+      if (finishController.signal.aborted || !isMountedRef.current) {
+        return
+      }
+
+      navigate(
+        buildResultPath({
+          stageId,
+          cleared: String(cleared),
+          logStatus: 'success',
+          playLogId: response.data.id,
+          playCount: String(response.aggregates.play_count),
+          clearCount: String(response.aggregates.clear_count),
+        }),
+      )
+    } catch (error) {
+      if (
+        finishController.signal.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError') ||
+        !isMountedRef.current
+      ) {
+        return
+      }
+
+      navigate(
+        buildResultPath({
+          stageId,
+          cleared: String(cleared),
+          logStatus: 'failed',
+          logError: getErrorMessage(error),
+        }),
+      )
+    } finally {
+      if (finishAbortControllerRef.current === finishController) {
+        finishAbortControllerRef.current = null
+      }
+      if (isMountedRef.current) {
+        finishingRef.current = false
+        setIsFinishingPlay(false)
+      }
+    }
   }, [stageId])
 
   const { canvasRef } = useKAPLAY({
@@ -94,7 +169,8 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
     <section className="page-card">
       <h1 className="page-heading">プレイ画面</h1>
       <p className="status-text">
-        API: <code>GET /api/stages/:id</code> / <code>POST /api/stages/:id/likes</code>
+        API: <code>GET /api/stages/:id</code> / <code>POST /api/stages/:id/likes</code> /{' '}
+        <code>POST /api/stages/:id/play_logs</code>
       </p>
 
       {isLoading && <p className="status-text">ステージ読込中...</p>}
@@ -110,6 +186,7 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
             キャンバスの初期化済み（<code>useKAPLAY</code>）。デモ用に C キーでクリア、
             F キーで失敗を発火できます。
           </p>
+          {isFinishingPlay && <p className="status-text">プレイログを送信して結果画面へ移動中です...</p>}
 
           <div className="canvas-wrapper">
             <canvas ref={canvasRef} width={960} height={540} className="game-canvas" style={{ touchAction: 'none' }} />
@@ -120,29 +197,49 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
               type="button"
               className="button secondary"
               onClick={handleLikeToggle}
-              disabled={isTogglingLike}
+              disabled={isTogglingLike || isFinishingPlay}
             >
               {isTogglingLike ? '送信中...' : 'いいねトグル'}
             </button>
-            <button type="button" className="button" onClick={() => handleFinishPlay(true)}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                void handleFinishPlay(true)
+              }}
+              disabled={isFinishingPlay}
+            >
               クリアして結果へ
             </button>
             <button
               type="button"
               className="button secondary"
-              onClick={() => handleFinishPlay(false)}
+              onClick={() => {
+                void handleFinishPlay(false)
+              }}
+              disabled={isFinishingPlay}
             >
               失敗して結果へ
             </button>
           </div>
 
           <div className="inline-actions">
-            <AppLink to={`/edit/${stageId}`} className="button secondary">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate(`/edit/${stageId}`)}
+              disabled={isFinishingPlay}
+            >
               編集へ
-            </AppLink>
-            <AppLink to="/" className="button secondary">
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate('/')}
+              disabled={isFinishingPlay}
+            >
               ホームへ
-            </AppLink>
+            </button>
           </div>
         </>
       )}
