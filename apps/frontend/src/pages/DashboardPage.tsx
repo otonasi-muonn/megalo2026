@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import { Trash2 } from 'lucide-react'
 import { PencilLine } from 'lucide-react'
+import { ArrowDownUp } from 'lucide-react'
+import { Heart } from 'lucide-react'
+import { SpellCheck } from 'lucide-react'
 import type {
   Pagination,
   ProfileResponse,
@@ -69,6 +72,7 @@ const mockStages: StageListItemDto[] = [
 ]
 
 type StageSortKey = 'favorite' | 'created' | 'name'
+type SortOrder = 'desc' | 'asc'
 
 export const DashboardPage = () => {
   const [displayName, setDisplayName] = useState('未取得')
@@ -78,26 +82,34 @@ export const DashboardPage = () => {
     total: mockStages.length,
     total_pages: 1,
   })
-  const [sortKey, setSortKey] = useState<StageSortKey>('favorite')
+  const [sortKey, setSortKey] = useState<StageSortKey>('created')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [favoriteStageIds, setFavoriteStageIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const sortedStages = [...stages].sort((a, b) => {
+  const filteredStages = stages.filter((stage) =>
+    stage.title.toLowerCase().includes(searchKeyword.trim().toLowerCase())
+  )
+
+  const sortedStages = [...filteredStages].sort((a, b) => {
+    const direction = sortOrder === 'asc' ? 1 : -1
+
     if (sortKey === 'favorite') {
       const aFavorite = favoriteStageIds.has(a.id) ? 1 : 0
       const bFavorite = favoriteStageIds.has(b.id) ? 1 : 0
       if (aFavorite !== bFavorite) {
-        return bFavorite - aFavorite
+        return (aFavorite - bFavorite) * direction
       }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction
     }
 
     if (sortKey === 'created') {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction
     }
 
-    return a.title.localeCompare(b.title, 'ja')
+    return a.title.localeCompare(b.title, 'ja') * direction
   })
 
   const handleToggleFavorite = (stageId: string) => {
@@ -188,8 +200,7 @@ export const DashboardPage = () => {
     <section className="page-card dashboard-page">
       <h1 className="page-heading">ダッシュボード</h1>
       <p className="status-text">
-        {displayName} の作成ステージを表示します。API: <code>GET /api/profiles/me</code> /{' '}
-        <code>GET /api/stages</code>
+        {displayName} さんのステージ管理画面です。作成したステージの確認・編集・公開準備ができます。
       </p>
 
       {isLoading && <p className="status-text">読み込み中...</p>}
@@ -205,17 +216,58 @@ export const DashboardPage = () => {
             自分のステージ: {pagination.total}件（ページ {pagination.page}/
             {pagination.total_pages || 1}）
           </p>
+          <div className="search-controls">
+            <label htmlFor="stage-search-input">ステージ名検索:</label>
+            <input
+              id="stage-search-input"
+              type="text"
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+              placeholder="ステージ名を入力"
+            />
+          </div>
           <div className="sort-controls">
             <label htmlFor="stage-sort-select">並べ替え:</label>
-            <select
-              id="stage-sort-select"
-              value={sortKey}
-              onChange={(event) => setSortKey(event.target.value as StageSortKey)}
+            <div className="sort-select-wrap">
+              {sortKey === 'favorite' && (
+                <span className="sort-key-icon" aria-hidden="true">
+                  <Heart />
+                </span>
+              )}
+              {sortKey === 'created' && (
+                <span className="sort-key-icon" aria-hidden="true">
+                  <PencilLine />
+                </span>
+              )}
+              {sortKey === 'name' && (
+                <span className="sort-key-icon" aria-hidden="true">
+                  <SpellCheck />
+                </span>
+              )}
+              <select
+                id="stage-sort-select"
+                className={
+                  sortKey === 'favorite' || sortKey === 'created' || sortKey === 'name'
+                    ? 'with-icon'
+                    : ''
+                }
+                value={sortKey}
+                onChange={(event) => setSortKey(event.target.value as StageSortKey)}
+              >
+                <option value="favorite">お気に入り順</option>
+                <option value="created">制作順</option>
+                <option value="name">名前順</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              className="button secondary sort-order-button"
+              onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+              aria-label={`並び順を${sortOrder === 'desc' ? '昇順' : '降順'}に変更`}
             >
-              <option value="favorite">お気に入り順</option>
-              <option value="created">制作順</option>
-              <option value="name">名前順</option>
-            </select>
+              <ArrowDownUp />
+              {sortOrder === 'desc' ? '降順' : '昇順'}
+            </button>
           </div>
           {sortedStages.length === 0 && <p className="status-text">作成したステージはまだありません。</p>}
           <ul className="stage-list">
@@ -255,7 +307,29 @@ export const DashboardPage = () => {
                       画像を変更
                     </label>
                   </div>
-                  <div className="stage-title">{stage.title}</div>
+                  <div
+                    className="stage-title editable-stage-title"
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(event) => {
+                      const editedTitle = event.currentTarget.textContent?.trim() ?? ''
+                      const nextTitle = editedTitle.length > 0 ? editedTitle : stage.title
+                      if (nextTitle !== stage.title) {
+                        handleEditStageName(stage.id, nextTitle)
+                      }
+                      event.currentTarget.textContent = nextTitle
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        event.currentTarget.blur()
+                      }
+                    }}
+                    role="textbox"
+                    aria-label="ステージ名を編集"
+                  >
+                    {stage.title}
+                  </div>
                   <div className="favorite-rating">
                     <button
                       type="button"
