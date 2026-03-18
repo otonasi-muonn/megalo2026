@@ -57,6 +57,39 @@ export interface Database {
         }
         Relationships: []
       }
+      ccss_transpile_jobs: {
+        Row: {
+          created_at: string
+          errors: Array<Record<string, unknown>>
+          finished_at: string | null
+          id: string
+          requested_by: string
+          source_path: string
+          status: 'queued' | 'running' | 'succeeded' | 'failed'
+          warnings: Array<Record<string, unknown>>
+        }
+        Insert: {
+          created_at?: string
+          errors?: Array<Record<string, unknown>>
+          finished_at?: string | null
+          id?: string
+          requested_by: string
+          source_path: string
+          status: 'queued' | 'running' | 'succeeded' | 'failed'
+          warnings?: Array<Record<string, unknown>>
+        }
+        Update: {
+          created_at?: string
+          errors?: Array<Record<string, unknown>>
+          finished_at?: string | null
+          id?: string
+          requested_by?: string
+          source_path?: string
+          status?: 'queued' | 'running' | 'succeeded' | 'failed'
+          warnings?: Array<Record<string, unknown>>
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string

@@ -23,6 +23,7 @@ $env:SUPABASE_JWT_AUDIENCE="authenticated"
 - `SUPABASE_SERVICE_ROLE_KEY`: サービスロールキー（DB操作用）
 - `SUPABASE_JWT_AUDIENCE`: JWTの `aud` 検証値（未指定時 `authenticated`）
 - `CCSS_STYLE_PATCH_AUDIT_ENABLED`: `true` のとき `style-patch` 監査ログを `ccss_style_patches` に保存（既定 `false`）
+- `CCSS_TRANSPILE_AUDIT_ENABLED`: `true` のとき `transpile/validate` 実行ログを `ccss_transpile_jobs` に保存（既定 `false`）
 
 ## ローカル起動手順
 
@@ -80,6 +81,7 @@ pnpm dev
 - 用途: frontend PoC上で、Reactサブセット適合を即時検証します。
 - 認証: 管理者ユーザーのみ（`CCSS_ADMIN_USER_IDS` に UUID をカンマ区切りで設定）
 - `CCSS_ADMIN_USER_IDS` 未設定時は `500 CCSS_ADMIN_CONFIG_MISSING` を返します。
+- 監査ログ（任意）: `CCSS_TRANSPILE_AUDIT_ENABLED=true` で `ccss_transpile_jobs` へ成功/失敗を保存します。
 
 ## CCSS契約検証コマンド
 

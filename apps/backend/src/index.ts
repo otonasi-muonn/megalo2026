@@ -118,6 +118,7 @@ const parseBoolean = (value: string | undefined): boolean | undefined => {
 }
 
 const ccssStylePatchAuditEnabled = parseBoolean(process.env.CCSS_STYLE_PATCH_AUDIT_ENABLED) ?? false
+const ccssTranspileAuditEnabled = parseBoolean(process.env.CCSS_TRANSPILE_AUDIT_ENABLED) ?? false
 
 const readJsonObject = async (c: AppContext): Promise<Record<string, unknown> | Response> => {
   try {
@@ -389,6 +390,30 @@ const writeStylePatchAudit = async (
       500,
       'CCSS_AUDIT_LOG_WRITE_FAILED',
       'style-patch 監査ログの保存に失敗しました。',
+      error.message,
+    )
+  }
+  return null
+}
+
+const writeTranspileAudit = async (
+  c: AppContext,
+  record: Database['public']['Tables']['ccss_transpile_jobs']['Insert'],
+): Promise<Response | null> => {
+  if (!ccssTranspileAuditEnabled) {
+    return null
+  }
+
+  const { error } = await supabase
+    .from('ccss_transpile_jobs')
+    .insert(record)
+
+  if (error) {
+    return jsonCodeError(
+      c,
+      500,
+      'CCSS_TRANSPILE_AUDIT_LOG_WRITE_FAILED',
+      'transpile validate 監査ログの保存に失敗しました。',
       error.message,
     )
   }
@@ -1083,13 +1108,47 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
 })
 
 app.post('/api/ccss/transpile/validate', requireCcssAdmin, async (c) => {
+  const requestedBy = getAuthUserId(c)
+  if (!requestedBy) {
+    return jsonCodeError(
+      c,
+      500,
+      'CCSS_ADMIN_CONTEXT_MISSING',
+      'CCSS管理者の認証コンテキストを解決できませんでした。',
+      'Authorization ヘッダーを確認して再試行してください。',
+    )
+  }
+
   const bodyResult = await readJsonObject(c)
   if (bodyResult instanceof Response) {
     return bodyResult
   }
 
+  const persistAudit = async (
+    sourcePath: string,
+    status: 'failed' | 'succeeded',
+    errors: Array<Record<string, unknown>>,
+    warnings: Array<Record<string, unknown>>,
+  ): Promise<Response | null> => writeTranspileAudit(c, {
+    requested_by: requestedBy,
+    source_path: sourcePath,
+    status,
+    errors,
+    warnings,
+    finished_at: new Date().toISOString(),
+  })
+
   const rawSource = bodyResult.source
   if (typeof rawSource !== 'string' || rawSource.trim().length === 0) {
+    const auditError = await persistAudit(
+      toAuditText(bodyResult.sourcePath, '[invalid-source-path]'),
+      'failed',
+      [{ code: 'CCSS_INVALID_SOURCE', message: 'source は空でない文字列で指定してください' }],
+      [],
+    )
+    if (auditError) {
+      return auditError
+    }
     return jsonCodeError(
       c,
       400,
@@ -1102,6 +1161,15 @@ app.post('/api/ccss/transpile/validate', requireCcssAdmin, async (c) => {
 
   const rawSourcePath = bodyResult.sourcePath
   if (rawSourcePath !== undefined && typeof rawSourcePath !== 'string') {
+    const auditError = await persistAudit(
+      toAuditText(rawSourcePath, '[invalid-source-path]'),
+      'failed',
+      [{ code: 'CCSS_INVALID_SOURCE_PATH', message: 'sourcePath は文字列で指定してください' }],
+      [],
+    )
+    if (auditError) {
+      return auditError
+    }
     return jsonCodeError(
       c,
       400,
@@ -1116,12 +1184,30 @@ app.post('/api/ccss/transpile/validate', requireCcssAdmin, async (c) => {
 
   const parseResult = parseComponentSource(source, sourcePath)
   if (!parseResult.component || parseResult.errors.length > 0) {
+    const auditError = await persistAudit(
+      sourcePath,
+      'failed',
+      parseResult.errors.map((error) => ({
+        message: error.message,
+        line: error.line,
+        column: error.column,
+      })),
+      [],
+    )
+    if (auditError) {
+      return auditError
+    }
     return c.json({
       ok: false,
       sourcePath,
       errors: parseResult.errors,
       warnings: [],
     })
+  }
+
+  const auditError = await persistAudit(sourcePath, 'succeeded', [], [])
+  if (auditError) {
+    return auditError
   }
 
   return c.json({
