@@ -134,6 +134,7 @@
   background: transparent;
 }
 
+
 .page-card .stage-actions {
   display: flex;
   gap: 8px;
@@ -363,6 +364,7 @@
   box-shadow: none;
 }
 
+
 .page-card .sort-controls select.with-icon {
   padding-left: 46px;
 }
@@ -385,6 +387,7 @@
   border-color: transparent;
   box-shadow: none;
 }
+
 
 .page-card .sort-controls .sort-order-button svg {
   width: 14px;
@@ -571,6 +574,7 @@
   display: block;
   object-fit: contain;
 }
+
 
 .page-card .stage-favorite-button.active {
   color: #e65072;

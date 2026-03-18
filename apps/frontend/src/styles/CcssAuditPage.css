@@ -1,0 +1,79 @@
+.ccss-audit-card {
+  display: grid;
+  gap: 14px;
+}
+
+.ccss-audit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ccss-audit-token {
+  flex: 1 1 320px;
+  min-width: 240px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ccss-audit-limit,
+.ccss-audit-status {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ccss-audit-limit {
+  width: 88px;
+}
+
+.ccss-audit-section {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.ccss-audit-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.ccss-audit-filter-box {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.ccss-audit-filter-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.ccss-audit-filter-input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ccss-audit-empty {
+  list-style: none;
+  margin-left: -18px;
+  color: #6b7280;
+}
+
+.ccss-audit-session-button {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+}

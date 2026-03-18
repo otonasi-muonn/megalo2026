@@ -22,6 +22,10 @@ $env:SUPABASE_JWT_AUDIENCE="authenticated"
 - `SUPABASE_URL`: Supabase API URL
 - `SUPABASE_SERVICE_ROLE_KEY`: サービスロールキー（DB操作用）
 - `SUPABASE_JWT_AUDIENCE`: JWTの `aud` 検証値（未指定時 `authenticated`）
+- `CCSS_STYLE_PATCH_AUDIT_ENABLED`: `true` のとき `style-patch` 監査ログを `ccss_style_patches` に保存（既定 `false`）
+- `CCSS_TRANSPILE_AUDIT_ENABLED`: `true` のとき `transpile/validate` 実行ログを `ccss_transpile_jobs` に保存（既定 `false`）
+- `CCSS_STATE_EVENT_AUDIT_ENABLED`: `true` のとき `state-events` ログを `ccss_state_events` に保存（既定 `false`）
+- `CCSS_TRUST_PROXY_HEADERS`: `true` のとき `X-Forwarded-For` / `X-Real-IP` をレート制限キー解決に利用（既定 `false`）
 
 ## ローカル起動手順
 
@@ -47,14 +51,111 @@ Set-Location C:\.program_code\megalo2026\apps\backend
 pnpm dlx vercel dev --listen 8787
 ```
 
-補助として、Hono を直接起動する場合:
+補足:
 
 ```powershell
 pnpm dev
 ```
+
+`pnpm dev` は現状 `export default app` を評価して終了するため、APIサーバー待受の用途には使いません。  
+ローカルAPIの疎通確認は `pnpm dlx vercel dev --listen 8787` を利用してください。
 
 ## API認証メモ
 
 - `Authorization: Bearer <JWT>` を必要とするAPIは、Supabase JWKSで署名検証します。
 - トークンなし/無効トークンの場合は `401 Unauthorized` を返します。
 - `POST /api/stages/:id/play_logs` のみ認証任意です（未認証時 `player_id = null`）。
+
+## CCSS PoCエンドポイント
+
+`POST /api/ccss/style-patch`（認証任意）
+
+- 入力: `view`, `stateId`, `payload`
+- 出力: `recipeIds`, `classList`, `patchId`, `ttlMs`, `rulesetVersion`
+- セキュリティ: 危険トークン（`@import`, `url(`, `expression(`, `<style`）を検知した入力は `422` で拒否します。
+- レート制限: 既定は 5秒あたり20リクエスト（認証ユーザー単位 + 匿名は共有キー）
+- 超過時: `429 CCSS_RATE_LIMITED`（`retryAfterMs` を返却）
+- 環境変数: `CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS`, `CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS`, `CCSS_TRUST_PROXY_HEADERS`
+- `CCSS_TRUST_PROXY_HEADERS=true` の場合のみ、`X-Forwarded-For` / `X-Real-IP` の妥当なIP値を匿名キーに利用します。
+- 監査ログ（任意）: `CCSS_STYLE_PATCH_AUDIT_ENABLED=true` で `ccss_style_patches` へ成功/失敗を保存します。
+
+`GET /api/ccss/style-patch/states`（認証任意）
+
+- 用途: `style-patch` で適用可能な `stateId` 一覧を取得
+- 主なクエリ: `view`（任意）
+
+`POST /api/ccss/transpile/validate`（管理者認証必須）
+
+- 入力: `source`（必須文字列）, `sourcePath`（任意文字列）
+- 出力（成功）: `ok: true`, `component`（name/stateCount/stateNames）, `errors: []`
+- 出力（失敗）: `ok: false`, `errors`（行・列付き）
+- 用途: frontend PoC上で、Reactサブセット適合を即時検証します。
+- 認証: 管理者ユーザーのみ（`CCSS_ADMIN_USER_IDS` に UUID をカンマ区切りで設定）
+- `CCSS_ADMIN_USER_IDS` 未設定時は `500 CCSS_ADMIN_CONFIG_MISSING` を返します。
+- 監査ログ（任意）: `CCSS_TRANSPILE_AUDIT_ENABLED=true` で `ccss_transpile_jobs` へ成功/失敗を保存します。
+
+`GET /api/ccss/audit/style-patches`（管理者認証必須）
+
+- 用途: `style-patch` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `view`, `stateId`, `rejectionCode`, `requestId`, `patchId`
+
+`GET /api/ccss/audit/transpile-jobs`（管理者認証必須）
+
+- 用途: `transpile/validate` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `status`（`queued/running/succeeded/failed`）, `requestedBy`（UUID）
+
+`GET /api/ccss/audit/state-events`（管理者認証必須）
+
+- 用途: `state-events` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `sessionKey`, `stateId`, `eventName`, `requestId`, `patchId`
+
+`GET /api/ccss/audit/sessions`（管理者認証必須）
+
+- 用途: `state-events` 監査ログから sessionKey ごとの直近集計（件数・最終時刻・patch関連件数）を取得
+- 主なクエリ: `limit`（1-200）, `stateId`, `eventName`
+
+`GET /api/ccss/audit/session-trace`（管理者認証必須）
+
+- 用途: 1セッション内の `state-events` と `style-patch` を相関し、`state -> patch -> appliedRecipeIds` の時系列を取得
+- 主なクエリ: `sessionKey`（必須）, `limit`（1-200）, `fromLatest`（任意: `true` の場合は最新N件を取得し、返却時は時系列順に整列）
+
+`GET /api/ccss/audit/summary`（管理者認証必須）
+
+- 用途: style/transpile/state-events の直近集計（拒否コード内訳・status内訳・event内訳）を取得
+- 主なクエリ: `limit`（1-200）
+
+`POST /api/ccss/state-events`（認証任意）
+
+- 用途: UI状態遷移イベント（`ui:state:set` など）の監査ログ記録
+- 入力: `sessionKey`, `stateId`, `eventName`, `requestId?`, `patchId?`, `payload?`
+- `CCSS_STATE_EVENT_AUDIT_ENABLED=false` の場合は保存せず `recorded: false` を返却
+
+## CCSS契約検証コマンド
+
+```powershell
+pnpm run ccss:style-patch:contract
+pnpm run ccss:recipe-integrity
+pnpm run ccss:smoke
+# repo root から一括実行する場合
+pnpm ccss:manifest-check
+pnpm ccss:selector-check
+pnpm ccss:html-state-check
+pnpm ccss:c-safety
+pnpm ccss:css-safety
+pnpm ccss:transpile-build
+pnpm ccss:checks
+```
+
+- `pnpm ccss:manifest-check` は enum state の `enumValues`（空配列禁止・重複禁止・`initialValue` 包含）も検証します。
+
+期待結果:
+
+- `CCSS style-patch contract check: PASSED` が表示されること
+- `CCSS recipe integrity check: PASSED` が表示されること
+- `CCSS API smoke test: PASSED` が表示されること
+- `CCSS manifest check: PASSED` が表示されること
+- `CCSS selector check: PASSED` が表示されること
+- `CCSS HTML state check: PASSED` が表示されること
+- `CCSS C safety check: PASSED` が表示されること
+- `CCSS CSS safety check: PASSED` が表示されること
+- `pnpm ccss:checks` がエラー終了しないこと

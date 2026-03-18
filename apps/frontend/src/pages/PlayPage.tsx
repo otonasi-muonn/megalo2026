@@ -57,7 +57,11 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
       setErrorMessage(null)
       setLikeMessage(null)
 
-      const response = await apiPost<LikeToggleResponse>(`/api/stages/${stageId}/likes`)
+      const response = await apiPost<LikeToggleResponse>(
+        `/api/stages/${stageId}/likes`,
+        undefined,
+        { withAuth: true },
+      )
       setLikeMessage(
         `いいね状態: ${response.data.liked ? 'ON' : 'OFF'} / 合計いいね: ${response.data.like_count}`,
       )

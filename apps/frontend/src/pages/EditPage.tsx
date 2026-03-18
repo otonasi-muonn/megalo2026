@@ -89,7 +89,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
         title: stage.title,
         is_published: false,
         stage_data: exportStageData(),
-      })
+      }, { withAuth: true })
 
       setStage(response.data)
       setResultMessage('ステージを更新しました。')
@@ -112,7 +112,7 @@ export const EditPage = ({ stageId }: EditPageProps) => {
         title: stage.title,
         is_published: true,
         stage_data: exportStageData(),
-      })
+      }, { withAuth: true })
       setStage(response.data)
       setResultMessage('ステージを公開しました！')
     } catch (error) {
