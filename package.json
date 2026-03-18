@@ -12,6 +12,7 @@
     "ccss:compiler:sample": "pnpm --filter @ccss/compiler run sample",
     "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
     "ccss:manifest-check": "node scripts/ccss-manifest-check.mjs",
+    "ccss:c-safety": "node scripts/ccss-c-safety-check.mjs",
     "ccss:css-safety": "node scripts/ccss-css-safety-check.mjs",
     "ccss:dom-isolation": "node scripts/ccss-dom-isolation-check.mjs",
     "ccss:transpile-build": "node scripts/ccss-transpile-build.mjs",

@@ -33,6 +33,7 @@ const main = async () => {
   run('pnpm ccss:manifest-check')
   run('pnpm ccss:recipe-integrity')
   run('pnpm ccss:dom-isolation')
+  run('pnpm ccss:c-safety')
   run('pnpm ccss:css-safety')
 
   for (const name of REQUIRED_FILES) {

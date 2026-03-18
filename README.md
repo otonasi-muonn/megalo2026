@@ -72,6 +72,7 @@ pnpm ccss:compiler:typecheck
 pnpm ccss:compiler:sample
 pnpm ccss:assets:sync
 pnpm ccss:manifest-check
+pnpm ccss:c-safety
 pnpm ccss:css-safety
 pnpm ccss:dom-isolation
 pnpm ccss:transpile-build
@@ -96,6 +97,7 @@ pnpm ccss:checks
 `pnpm ccss:style-patch:contract` で、`style-patch` APIの契約（危険トークン拒否・範囲外拒否・`cssText` 非返却）を自動検証できます。
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:manifest-check` で、manifestの必須項目/型/重複stateIdを検証できます。
+`pnpm ccss:c-safety` で、生成Cコードの危険API/不正断片（`malloc`, `strcpy`, `system(`, `<script`）を検出できます。
 `pnpm ccss:css-safety` で、生成CSSの危険トークン/危険セレクタ（`@import`, `url(`, `expression(`, `* {`）を検出できます。
 `pnpm ccss:dom-isolation` で、生成UIへの `<canvas>` / `#ccss-game-root` 混入を検出できます。
 `pnpm ccss:transpile-build` で、生成・同期・レシピ整合検証を一括実行できます。
