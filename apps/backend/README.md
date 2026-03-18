@@ -24,6 +24,7 @@ $env:SUPABASE_JWT_AUDIENCE="authenticated"
 - `SUPABASE_JWT_AUDIENCE`: JWTの `aud` 検証値（未指定時 `authenticated`）
 - `CCSS_STYLE_PATCH_AUDIT_ENABLED`: `true` のとき `style-patch` 監査ログを `ccss_style_patches` に保存（既定 `false`）
 - `CCSS_TRANSPILE_AUDIT_ENABLED`: `true` のとき `transpile/validate` 実行ログを `ccss_transpile_jobs` に保存（既定 `false`）
+- `CCSS_STATE_EVENT_AUDIT_ENABLED`: `true` のとき `state-events` ログを `ccss_state_events` に保存（既定 `false`）
 
 ## ローカル起動手順
 
@@ -92,6 +93,12 @@ pnpm dev
 
 - 用途: `transpile/validate` 監査ログ一覧を取得
 - 主なクエリ: `limit`（1-200）, `status`（`queued/running/succeeded/failed`）, `requestedBy`（UUID）
+
+`POST /api/ccss/state-events`（認証任意）
+
+- 用途: UI状態遷移イベント（`ui:state:set` など）の監査ログ記録
+- 入力: `sessionKey`, `stateId`, `eventName`, `requestId?`, `patchId?`, `payload?`
+- `CCSS_STATE_EVENT_AUDIT_ENABLED=false` の場合は保存せず `recorded: false` を返却
 
 ## CCSS契約検証コマンド
 

@@ -121,6 +121,7 @@ const parseBoolean = (value: string | undefined): boolean | undefined => {
 
 const ccssStylePatchAuditEnabled = parseBoolean(process.env.CCSS_STYLE_PATCH_AUDIT_ENABLED) ?? false
 const ccssTranspileAuditEnabled = parseBoolean(process.env.CCSS_TRANSPILE_AUDIT_ENABLED) ?? false
+const ccssStateEventAuditEnabled = parseBoolean(process.env.CCSS_STATE_EVENT_AUDIT_ENABLED) ?? false
 
 const readJsonObject = async (c: AppContext): Promise<Record<string, unknown> | Response> => {
   try {
@@ -1122,6 +1123,129 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
     recipeIds,
     classList,
     rulesetVersion: CCSS_RULESET_VERSION,
+  })
+})
+
+app.post('/api/ccss/state-events', optionalAuth, async (c) => {
+  const bodyResult = await readJsonObject(c)
+  if (bodyResult instanceof Response) {
+    return bodyResult
+  }
+
+  const rawSessionKey = bodyResult.sessionKey
+  if (typeof rawSessionKey !== 'string' || rawSessionKey.trim().length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_SESSION_KEY',
+      'sessionKey は空でない文字列で指定してください。',
+      '例: ccss-poc-session-001',
+    )
+  }
+  const sessionKey = rawSessionKey.trim()
+
+  const rawStateId = bodyResult.stateId
+  if (typeof rawStateId !== 'string' || !CCSS_STATE_ID_PATTERN.test(rawStateId)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      'stateId は ccss:<page>:<component>:<state> 形式で指定してください。',
+      '例: ccss:sample:sample-panel:menu-open',
+    )
+  }
+  const stateId = rawStateId
+
+  const rawEventName = bodyResult.eventName
+  if (typeof rawEventName !== 'string' || rawEventName.trim().length === 0) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_EVENT_NAME',
+      'eventName は空でない文字列で指定してください。',
+      '例: ui:state:set',
+    )
+  }
+  const eventName = rawEventName.trim()
+
+  const rawRequestId = bodyResult.requestId
+  if (rawRequestId !== undefined && typeof rawRequestId !== 'string') {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_REQUEST_ID',
+      'requestId は文字列で指定してください。',
+      '例: req_xxx',
+    )
+  }
+  const requestId = typeof rawRequestId === 'string' && rawRequestId.trim().length > 0
+    ? rawRequestId.trim()
+    : null
+
+  const rawPatchId = bodyResult.patchId
+  if (rawPatchId !== undefined && typeof rawPatchId !== 'string') {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_PATCH_ID',
+      'patchId は文字列で指定してください。',
+      '例: ccss_patch_xxx',
+    )
+  }
+  const patchId = typeof rawPatchId === 'string' && rawPatchId.trim().length > 0
+    ? rawPatchId.trim()
+    : null
+
+  if (hasOwn(bodyResult, 'payload') && bodyResult.payload !== null && !isRecord(bodyResult.payload)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_PAYLOAD',
+      'payload はJSONオブジェクトで指定してください',
+      '例: { \"source\": \"poc\" }',
+    )
+  }
+  const payload = toAuditPayload(bodyResult.payload)
+
+  const unsafe = findUnsafeTokenPath(payload, 'payload')
+  if (unsafe) {
+    return jsonCodeError(
+      c,
+      422,
+      'CCSS_UNSAFE_INPUT_REJECTED',
+      `危険トークンを検知したため拒否しました: ${unsafe.path}`,
+      `${unsafe.token} を含む入力を除去してください`,
+    )
+  }
+
+  if (!ccssStateEventAuditEnabled) {
+    return c.json({
+      recorded: false,
+      reason: 'CCSS_STATE_EVENT_AUDIT_DISABLED',
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('ccss_state_events')
+    .insert({
+      session_key: sessionKey,
+      state_id: stateId,
+      event_name: eventName,
+      request_id: requestId,
+      patch_id: patchId,
+      payload,
+      created_by: getAuthUserId(c),
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    return dbError(c, error, 'state event監査ログの保存に失敗しました')
+  }
+
+  return c.json({
+    recorded: true,
+    eventId: data.id,
   })
 })
 

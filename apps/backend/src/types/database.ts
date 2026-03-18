@@ -90,6 +90,42 @@ export interface Database {
         }
         Relationships: []
       }
+      ccss_state_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_name: string
+          id: string
+          patch_id: string | null
+          payload: Record<string, unknown>
+          request_id: string | null
+          session_key: string
+          state_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_name: string
+          id?: string
+          patch_id?: string | null
+          payload?: Record<string, unknown>
+          request_id?: string | null
+          session_key: string
+          state_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_name?: string
+          id?: string
+          patch_id?: string | null
+          payload?: Record<string, unknown>
+          request_id?: string | null
+          session_key?: string
+          state_id?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string
