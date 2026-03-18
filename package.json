@@ -11,6 +11,7 @@
     "ccss:compiler:typecheck": "pnpm --filter @ccss/compiler run typecheck",
     "ccss:compiler:sample": "pnpm --filter @ccss/compiler run sample",
     "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
+    "ccss:dom-isolation": "node scripts/ccss-dom-isolation-check.mjs",
     "ccss:transpile-build": "node scripts/ccss-transpile-build.mjs",
     "ccss:style-patch:contract": "pnpm --filter hono run ccss:style-patch:contract",
     "ccss:recipe-integrity": "pnpm --filter hono run ccss:recipe-integrity",

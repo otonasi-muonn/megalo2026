@@ -31,6 +31,7 @@ const main = async () => {
   run('pnpm ccss:compiler:sample')
   run('pnpm ccss:assets:sync')
   run('pnpm ccss:recipe-integrity')
+  run('pnpm ccss:dom-isolation')
 
   for (const name of REQUIRED_FILES) {
     await ensureNonEmptyFile(path.join(sourceDir, name))
