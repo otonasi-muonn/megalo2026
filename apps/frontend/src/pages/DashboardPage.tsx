@@ -5,6 +5,7 @@ import { PencilLine } from 'lucide-react'
 import { ArrowDownUp } from 'lucide-react'
 import { Heart } from 'lucide-react'
 import { SpellCheck } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type {
   Pagination,
   ProfileResponse,
@@ -207,9 +208,9 @@ export const DashboardPage = () => {
 
   return (
     <section className="page-card dashboard-page">
-      <h1 className="page-heading">ダッシュボード</h1>
+      <h1 className="page-heading">My Stages</h1>
       <p className="status-text">
-        {displayName} さんのステージ管理画面です。作成したステージの確認・編集・公開準備ができます。
+        {displayName} さんのステージ一覧です。
       </p>
 
       {isLoading && <p className="status-text">読み込み中...</p>}
@@ -224,7 +225,12 @@ export const DashboardPage = () => {
           <div className="dashboard-toolbar">
             <div className="dashboard-toolbar-left">
               <div className="search-controls">
-                <label htmlFor="stage-search-input">ステージ名検索:</label>
+                <label htmlFor="stage-search-input">
+                  <span className="search-icon" aria-hidden="true">
+                    <Search />
+                  </span>
+                  ステージ名検索:
+                </label>
                 <input
                   id="stage-search-input"
                   type="text"

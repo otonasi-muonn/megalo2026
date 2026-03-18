@@ -201,6 +201,7 @@
   align-items: center;
   gap: 8px;
   margin: 8px 0 4px;
+  margin-left: 20px;
 }
 
 .page-card .sort-select-wrap {
@@ -211,7 +212,7 @@
 
 .page-card .sort-controls .sort-key-icon {
   position: absolute;
-  left: 8px;
+  left: 14px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -232,10 +233,28 @@
   margin: 8px 0 4px;
 }
 
+.page-card .search-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-card .search-controls .search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #12435d;
+}
+
+.page-card .search-controls .search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .page-card .search-controls input {
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 4px 8px;
+  padding: 4px 16px;
   background: url('/images/paper.png') center / cover no-repeat;
   background-position: 40% center;
   color: #12435d;
@@ -248,49 +267,49 @@
 
 .page-card .search-controls input:focus,
 .page-card .search-controls input:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls select {
+  width: 140px;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 4px 8px;
-  background: url('/images/paper.png') center / cover no-repeat;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: url('/images/paper.png') center / 100% 100% no-repeat;
   color: #12435d;
 }
 
 .page-card .sort-controls select:focus,
 .page-card .sort-controls select:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls select.with-icon {
-  padding-left: 30px;
+  padding-left: 46px;
 }
 
 .page-card .sort-controls .sort-order-button {
   margin-left: auto;
   margin-right: 32px;
-  padding: 4px 8px;
+  min-height: 40px;
+  padding: 8px 16px;
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid transparent;
-  background: url('/images/paper.png') center / cover no-repeat;
+  background: url('/images/paper.png') center / 100% 100% no-repeat;
   color: #1a5370;
 }
 
 .page-card .sort-controls .sort-order-button:focus,
 .page-card .sort-controls .sort-order-button:focus-visible {
-  outline: 2px solid #1a5370;
-  outline-offset: 2px;
-  border-color: #1a5370;
-  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls .sort-order-button svg {
