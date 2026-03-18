@@ -107,7 +107,7 @@ pnpm dev
 `GET /api/ccss/audit/session-trace`（管理者認証必須）
 
 - 用途: 1セッション内の `state-events` と `style-patch` を相関し、`state -> patch -> appliedRecipeIds` の時系列を取得
-- 主なクエリ: `sessionKey`（必須）, `limit`（1-200）
+- 主なクエリ: `sessionKey`（必須）, `limit`（1-200）, `fromLatest`（任意: `true` の場合は最新N件を取得し、返却時は時系列順に整列）
 
 `GET /api/ccss/audit/summary`（管理者認証必須）
 

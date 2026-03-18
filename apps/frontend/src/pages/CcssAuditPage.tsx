@@ -56,6 +56,13 @@ type SessionTraceItem = {
 
 type SessionTraceResponse = {
   sessionKey: string
+  window: {
+    limit: number
+    fromLatest: boolean
+    returned: number
+    firstCreatedAt: string | null
+    lastCreatedAt: string | null
+  }
   data: SessionTraceItem[]
   stats: {
     eventCount: number
@@ -164,6 +171,7 @@ export const CcssAuditPage = () => {
   const [stateEvents, setStateEvents] = useState<StateEventAuditRecord[]>([])
   const [sessionTrace, setSessionTrace] = useState<SessionTraceItem[]>([])
   const [sessionTraceSessionKey, setSessionTraceSessionKey] = useState<string | null>(null)
+  const [sessionTraceWindow, setSessionTraceWindow] = useState<SessionTraceResponse['window'] | null>(null)
   const [sessionTraceStats, setSessionTraceStats] = useState<SessionTraceResponse['stats'] | null>(null)
   const [auditSummary, setAuditSummary] = useState<AuditSummaryResponse | null>(null)
   const [sessionSummaries, setSessionSummaries] = useState<AuditSessionsRecord[]>([])
@@ -176,7 +184,12 @@ export const CcssAuditPage = () => {
       : null
   }, [bearerToken])
 
-  const loadAuditLogs = useCallback(async () => {
+  const loadAuditLogs = useCallback(async (overrides?: { eventSessionKey?: string }) => {
+    const resolvedEventSessionKey = overrides?.eventSessionKey ?? eventSessionFilter
+    if (overrides?.eventSessionKey !== undefined) {
+      setEventSessionFilter(overrides.eventSessionKey)
+    }
+
     if (!authHeaders) {
       setErrorMessage('監査APIの取得には管理者Bearer tokenが必要です。')
       return
@@ -192,7 +205,7 @@ export const CcssAuditPage = () => {
       setIsLoading(true)
       setErrorMessage(null)
 
-      const sessionTraceTarget = toQueryString(eventSessionFilter)
+      const sessionTraceTarget = toQueryString(resolvedEventSessionKey)
       const [stylePatchResponse, transpileResponse, stateEventResponse, sessionsResponse, sessionTraceResponse, summaryResponse] = await Promise.all([
         apiGet<AuditListResponse<StylePatchAuditRecord>>('/api/ccss/audit/style-patches', {
           query: {
@@ -215,7 +228,7 @@ export const CcssAuditPage = () => {
         apiGet<AuditListResponse<StateEventAuditRecord>>('/api/ccss/audit/state-events', {
           query: {
             limit: parsedLimit,
-            sessionKey: toQueryString(eventSessionFilter),
+            sessionKey: toQueryString(resolvedEventSessionKey),
             stateId: toQueryString(eventStateFilter),
             eventName: toQueryString(eventNameFilter),
             requestId: toQueryString(eventRequestFilter),
@@ -236,6 +249,7 @@ export const CcssAuditPage = () => {
               query: {
                 limit: parsedLimit,
                 sessionKey: sessionTraceTarget,
+                fromLatest: true,
               },
               headers: authHeaders,
             })
@@ -256,10 +270,12 @@ export const CcssAuditPage = () => {
       setAuditSummary(summaryResponse)
       if (sessionTraceResponse) {
         setSessionTraceSessionKey(sessionTraceResponse.sessionKey)
+        setSessionTraceWindow(sessionTraceResponse.window)
         setSessionTrace(sessionTraceResponse.data)
         setSessionTraceStats(sessionTraceResponse.stats)
       } else {
         setSessionTraceSessionKey(null)
+        setSessionTraceWindow(null)
         setSessionTrace([])
         setSessionTraceStats(null)
       }
@@ -318,7 +334,14 @@ export const CcssAuditPage = () => {
             </option>
           ))}
         </select>
-        <button type="button" className="button secondary" onClick={loadAuditLogs} disabled={isLoading}>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            void loadAuditLogs()
+          }}
+          disabled={isLoading}
+        >
           {isLoading ? '取得中...' : '監査ログを取得'}
         </button>
       </div>
@@ -454,9 +477,12 @@ export const CcssAuditPage = () => {
               <button
                 type="button"
                 className="button secondary ccss-audit-session-button"
-                onClick={() => setEventSessionFilter(session.sessionKey)}
+                onClick={() => {
+                  void loadAuditLogs({ eventSessionKey: session.sessionKey })
+                }}
+                disabled={isLoading}
               >
-                sessionKeyにセット
+                sessionKeyで再取得
               </button>
             </li>
           ))}
@@ -510,15 +536,19 @@ export const CcssAuditPage = () => {
         <h2 className="sub-heading">session trace（state → patch → recipes）</h2>
         {!sessionTraceSessionKey && (
           <p className="status-text">
-            `recent sessions` の <code>sessionKeyにセット</code> を押して再取得するか、
+            `recent sessions` の <code>sessionKeyで再取得</code> を押すか、
             `state-events フィルタ` の <code>sessionKey</code> を入力して取得すると、相関済みトレースを表示します。
           </p>
         )}
-        {sessionTraceSessionKey && sessionTraceStats && (
+        {sessionTraceSessionKey && sessionTraceStats && sessionTraceWindow && (
           <p className="status-text">
             session: <strong>{sessionTraceSessionKey}</strong> / events: {sessionTraceStats.eventCount}
             {' '} / correlated: {sessionTraceStats.correlatedPatchCount}
             {' '} / uncorrelated: {sessionTraceStats.uncorrelatedEventCount}
+            {' '} / fromLatest: {String(sessionTraceWindow.fromLatest)}
+            {' '} / returned: {sessionTraceWindow.returned}
+            {' '} / first: {sessionTraceWindow.firstCreatedAt ?? '-'}
+            {' '} / last: {sessionTraceWindow.lastCreatedAt ?? '-'}
           </p>
         )}
         <ul className="ccss-audit-list">

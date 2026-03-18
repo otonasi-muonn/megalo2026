@@ -1475,18 +1475,26 @@ app.get('/api/ccss/audit/session-trace', requireCcssAdmin, async (c) => {
     return limit
   }
 
+  const rawFromLatest = c.req.query('fromLatest')
+  const parsedFromLatest = parseBoolean(rawFromLatest)
+  if (rawFromLatest !== undefined && parsedFromLatest === undefined) {
+    return jsonError(c, 400, 'fromLatest は true または false で指定してください。')
+  }
+  const fromLatest = parsedFromLatest ?? true
+
   const { data: stateEvents, error: stateEventsError } = await supabase
     .from('ccss_state_events')
     .select(CCSS_STATE_EVENT_AUDIT_SELECT)
     .eq('session_key', sessionKey)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: !fromLatest })
     .limit(limit)
 
   if (stateEventsError) {
     return dbError(c, stateEventsError, 'state-eventsセッショントレースの取得に失敗しました')
   }
 
-  const events = stateEvents ?? []
+  const fetchedEvents = stateEvents ?? []
+  const events = fromLatest ? [...fetchedEvents].reverse() : fetchedEvents
   const patchIds = Array.from(
     new Set(
       events
@@ -1602,8 +1610,17 @@ app.get('/api/ccss/audit/session-trace', requireCcssAdmin, async (c) => {
   })
 
   const correlatedPatchCount = timeline.reduce((count, item) => count + (item.patch ? 1 : 0), 0)
+  const firstCreatedAt = timeline.length > 0 ? timeline[0].createdAt : null
+  const lastCreatedAt = timeline.length > 0 ? timeline[timeline.length - 1].createdAt : null
   return c.json({
     sessionKey,
+    window: {
+      limit,
+      fromLatest,
+      returned: timeline.length,
+      firstCreatedAt,
+      lastCreatedAt,
+    },
     data: timeline,
     stats: {
       eventCount: timeline.length,
