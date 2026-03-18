@@ -32,6 +32,7 @@ const main = async () => {
   run('pnpm ccss:assets:sync')
   run('pnpm ccss:recipe-integrity')
   run('pnpm ccss:dom-isolation')
+  run('pnpm ccss:css-safety')
 
   for (const name of REQUIRED_FILES) {
     await ensureNonEmptyFile(path.join(sourceDir, name))
