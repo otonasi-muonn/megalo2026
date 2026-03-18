@@ -319,11 +319,15 @@ export const useKAPLAY = ({
       }
     }
 
+    const clampToCanvas = (clientX: number, clientY: number, rect: DOMRect) => ({
+      x: Math.max(0, Math.min(rect.width, clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, clientY - rect.top)),
+    })
+
     const onSwipeMove = (clientX: number, clientY: number) => {
       if (swipe === null) return
       const rect = canvas.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
+      const { x, y } = clampToCanvas(clientX, clientY, rect)
       const last = swipe.points[swipe.points.length - 1]
       if (Math.hypot(x - last.x, y - last.y) >= 4) {
         swipe.points.push({ x, y })
@@ -333,7 +337,7 @@ export const useKAPLAY = ({
     const onSwipeEnd = (clientX: number, clientY: number) => {
       if (swipe === null) return
       const rect = canvas.getBoundingClientRect()
-      swipe.points.push({ x: clientX - rect.left, y: clientY - rect.top })
+      swipe.points.push(clampToCanvas(clientX, clientY, rect))
       const points = swipe.points
       const durationMs = performance.now() - swipe.startTime
       swipe = null
