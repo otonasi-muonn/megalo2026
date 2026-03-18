@@ -15,14 +15,14 @@ CCSSは、Cフロント・CSSバックを基本とするアーキテクチャで
     * **仕組み:** ブラウザ上での動的な画面生成を、WebAssemblyとしてコンパイルされたC言語に完全に委譲しています。
     * **動作:** C言語が自身のメモリ領域を直接操作し、静的に確保されたバッファ内でHTMLの文字列を動的に組み立てます。生成された巨大なHTML文字列を画面上のUI表示領域に力技で流し込み、**画面を丸ごと上書きする**という乱暴な手法で描画を行います。
 
-▶ 該当実装: apps/frontend/public/ccss/ui.generated.c
+▶ 該当実装: [`apps/frontend/public/ccss/ui.generated.c`](../apps/frontend/public/ccss/ui.generated.c)
     
 
 * **② CSSによるバックエンド的状態管理（状態の外部化）**
     * **仕組み:** 「現在のタブ状態」「モーダルの開閉」などの内部状態を、JavaScriptの変数として保持することを完全に放棄しています。
     * **動作:** すべてのUI状態を、画面上に視覚的に隠蔽された**多数のチェックボックスのオン・オフ**として物理的なHTML要素に記憶させます。このチェックボックスの状態変化に連動して表示・非表示を切り替えるCSSのセレクタ規則を敷き詰めることで、論理制御を一切介さずに画面遷移を実現します。
 
-▶ 該当実装: apps/frontend/public/ccss/ui.generated.css
+▶ 該当実装: [`apps/frontend/public/ccss/ui.generated.css`](../apps/frontend/public/ccss/ui.generated.css)
     
 
 * **③ 動的CSSによるサーバー通信（強制的な画面更新）**
@@ -41,7 +41,7 @@ CCSSは、Cフロント・CSSバックを基本とするアーキテクチャで
 2.  **解体・翻訳:** コンパイラがReactの構造を読み込み、画面を描画するための「C言語の文字列生成処理」と、状態を管理するための「CSSのチェックボックス連動規則」へと物理的に解体します。
 3.  **出力:** それぞれを別々のファイルとして自動出力し、人間が直接触れることなく複雑なCCSS構造を生成します。
 
-▶ 該当実装: packages/ccss-compiler/src/parser.ts, packages/ccss-compiler/src/emitter/manifest.ts
+▶ 該当実装: [`packages/ccss-compiler/src/parser.ts`](../packages/ccss-compiler/src/parser.ts), [`packages/ccss-compiler/src/emitter/manifest.ts`](../packages/ccss-compiler/src/emitter/manifest.ts)
 
 ---
 
