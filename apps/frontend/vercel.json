@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/play/:stageId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(bot|Bot|Twitterbot|facebookexternalhit|Facebot|Slackbot-LinkExpanding|Discordbot|LineBot|LinkedInBot|WhatsApp|TelegramBot).*"
+        }
+      ],
+      "destination": "/api/ogp/:stageId"
+    }
+  ]
+}
