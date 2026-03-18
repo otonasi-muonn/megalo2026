@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ccss:style-patch:contract": "tsx scripts/ccss-style-patch-contract.ts"
   },
   "dependencies": {
     "@ccss/compiler": "workspace:*",

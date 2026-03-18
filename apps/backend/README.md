@@ -78,3 +78,13 @@ pnpm dev
 - 用途: frontend PoC上で、Reactサブセット適合を即時検証します。
 - 認証: 管理者ユーザーのみ（`CCSS_ADMIN_USER_IDS` に UUID をカンマ区切りで設定）
 - `CCSS_ADMIN_USER_IDS` 未設定時は `500 CCSS_ADMIN_CONFIG_MISSING` を返します。
+
+## CCSS契約検証コマンド
+
+```powershell
+pnpm run ccss:style-patch:contract
+```
+
+期待結果:
+
+- `CCSS style-patch contract check: PASSED` が表示されること
