@@ -38,13 +38,26 @@ values (
 )
 on conflict (id) do nothing;
 
--- チュートリアルステージ
--- スポーン左上 → 棚を右に下りながら → ゴール右下
+-- チュートリアル1: はじめての風
+-- レイアウト（ワールド 1920x1080）:
+--
+--  プレイヤー半径=24, 直径=48px。穴の幅=100px（直径の約2倍）
+--
+--  [spawn]  縦壁1        縦壁2        縦壁3   [goal]
+--           |  上部       |  上部       |  上部
+--           |             |  穴(y:380)  |
+--           |  穴(y:540)  |             |  穴(y:240)
+--           |             |  下部       |
+--           |  下部        |            |  下部
+--  ─────────────────────────────────────────────  床(y:960)
+--
+-- 穴の高さを 上→中→下 と変化させ、風で高さを合わせながら通り抜ける操作を学ぶ
+
 insert into public.stages (id, author_id, title, stage_data, is_published, created_at, updated_at)
 values (
   'b0000000-0000-4000-8000-000000000101',
   'a0000000-0000-4000-8000-000000000001',
-  'チュートリアル - 風を使ってみよう',
+  'チュートリアル1 - はじめての風',
   '{
     "version": "1.0.0",
     "world": { "width": 1920, "height": 1080, "gridSize": 16 },
@@ -54,12 +67,18 @@ values (
       "windDecay": 0.08,
       "windForceScale": 1
     },
-    "spawn": { "position": { "x": 160, "y": 200 } },
+    "spawn": { "position": { "x": 160, "y": 500 } },
     "goal": {
-      "position": { "x": 1720, "y": 900 },
+      "position": { "x": 1720, "y": 440 },
       "size": { "width": 120, "height": 120 }
     },
     "gimmicks": [
+      {
+        "id": "wall-ceiling",
+        "kind": "wall",
+        "position": { "x": 0, "y": 0 },
+        "size": { "width": 1920, "height": 60 }
+      },
       {
         "id": "wall-floor",
         "kind": "wall",
@@ -79,22 +98,40 @@ values (
         "size": { "width": 60, "height": 1080 }
       },
       {
-        "id": "wall-shelf-1",
+        "id": "vwall-1-top",
         "kind": "wall",
-        "position": { "x": 60, "y": 480 },
-        "size": { "width": 600, "height": 40 }
+        "position": { "x": 540, "y": 60 },
+        "size": { "width": 40, "height": 480 }
       },
       {
-        "id": "wall-shelf-2",
+        "id": "vwall-1-bottom",
         "kind": "wall",
-        "position": { "x": 800, "y": 680 },
-        "size": { "width": 600, "height": 40 }
+        "position": { "x": 540, "y": 640 },
+        "size": { "width": 40, "height": 320 }
       },
       {
-        "id": "wall-shelf-3",
+        "id": "vwall-2-top",
         "kind": "wall",
-        "position": { "x": 1400, "y": 760 },
-        "size": { "width": 460, "height": 40 }
+        "position": { "x": 1020, "y": 60 },
+        "size": { "width": 40, "height": 280 }
+      },
+      {
+        "id": "vwall-2-bottom",
+        "kind": "wall",
+        "position": { "x": 1020, "y": 480 },
+        "size": { "width": 40, "height": 480 }
+      },
+      {
+        "id": "vwall-3-top",
+        "kind": "wall",
+        "position": { "x": 1500, "y": 60 },
+        "size": { "width": 40, "height": 120 }
+      },
+      {
+        "id": "vwall-3-bottom",
+        "kind": "wall",
+        "position": { "x": 1500, "y": 320 },
+        "size": { "width": 40, "height": 640 }
       }
     ]
   }'::jsonb,
