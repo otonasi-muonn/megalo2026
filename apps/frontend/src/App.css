@@ -182,6 +182,8 @@
   overflow: hidden;
   background: #0f172a;
   position: relative;
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
 }
 
 .item-delete-btn {
