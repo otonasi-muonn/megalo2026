@@ -87,12 +87,17 @@ pnpm dev
 `GET /api/ccss/audit/style-patches`（管理者認証必須）
 
 - 用途: `style-patch` 監査ログ一覧を取得
-- 主なクエリ: `limit`（1-200）, `view`, `stateId`, `rejectionCode`
+- 主なクエリ: `limit`（1-200）, `view`, `stateId`, `rejectionCode`, `requestId`, `patchId`
 
 `GET /api/ccss/audit/transpile-jobs`（管理者認証必須）
 
 - 用途: `transpile/validate` 監査ログ一覧を取得
 - 主なクエリ: `limit`（1-200）, `status`（`queued/running/succeeded/failed`）, `requestedBy`（UUID）
+
+`GET /api/ccss/audit/state-events`（管理者認証必須）
+
+- 用途: `state-events` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `sessionKey`, `stateId`, `eventName`, `requestId`, `patchId`
 
 `POST /api/ccss/state-events`（認証任意）
 

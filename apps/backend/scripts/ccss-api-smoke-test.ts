@@ -35,6 +35,21 @@ const requestJson = async (
   return { response, data }
 }
 
+const requestGet = async (
+  app: { request: (input: string, init?: RequestInit) => Response | Promise<Response> },
+  path: string,
+  headers?: Record<string, string>,
+): Promise<{ response: Response; data: unknown }> => {
+  const response = await Promise.resolve(
+    app.request(`http://localhost${path}`, {
+      method: 'GET',
+      headers,
+    }),
+  )
+  const data = await response.json()
+  return { response, data }
+}
+
 const main = async (): Promise<void> => {
   const module = await import('../src/index.js')
   const app = module.default
@@ -71,6 +86,12 @@ const main = async (): Promise<void> => {
   assert(
     stateEventData.reason === 'CCSS_STATE_EVENT_AUDIT_DISABLED',
     'state-events 既定無効時の reason が不正です。',
+  )
+
+  const auditStateEventsNoAuth = await requestGet(app, '/api/ccss/audit/state-events?limit=5')
+  assert(
+    auditStateEventsNoAuth.response.status === 401,
+    `監査state-events API 無認証ステータスが想定外です: ${auditStateEventsNoAuth.response.status}`,
   )
 
   const validateNoAuth = await requestJson(app, '/api/ccss/transpile/validate', {

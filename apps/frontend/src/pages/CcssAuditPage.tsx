@@ -22,6 +22,17 @@ type TranspileAuditRecord = {
   created_at: string
 }
 
+type StateEventAuditRecord = {
+  id: string
+  session_key: string
+  state_id: string
+  event_name: string
+  request_id: string | null
+  patch_id: string | null
+  payload: Record<string, unknown>
+  created_at: string
+}
+
 type AuditListResponse<TRecord> = {
   data: TRecord[]
 }
@@ -32,15 +43,40 @@ type StatusFilter = (typeof STATUS_FILTERS)[number]
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '監査ログ取得で不明なエラーが発生しました。'
 
+const toQueryString = (value: string): string | undefined => {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+const summarizePayload = (payload: Record<string, unknown>): string => {
+  const keys = Object.keys(payload)
+  if (keys.length === 0) {
+    return '-'
+  }
+  const preview = keys.slice(0, 3).join(', ')
+  return keys.length > 3 ? `${preview} ... (${keys.length} keys)` : preview
+}
+
 export const CcssAuditPage = () => {
   const [bearerToken, setBearerToken] = useState('')
   const [limitInput, setLimitInput] = useState('20')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [styleViewFilter, setStyleViewFilter] = useState('')
+  const [styleStateFilter, setStyleStateFilter] = useState('')
+  const [styleRejectionFilter, setStyleRejectionFilter] = useState('')
+  const [styleRequestFilter, setStyleRequestFilter] = useState('')
+  const [stylePatchFilter, setStylePatchFilter] = useState('')
+  const [eventSessionFilter, setEventSessionFilter] = useState('')
+  const [eventStateFilter, setEventStateFilter] = useState('')
+  const [eventNameFilter, setEventNameFilter] = useState('')
+  const [eventRequestFilter, setEventRequestFilter] = useState('')
+  const [eventPatchFilter, setEventPatchFilter] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null)
   const [stylePatches, setStylePatches] = useState<StylePatchAuditRecord[]>([])
   const [transpileJobs, setTranspileJobs] = useState<TranspileAuditRecord[]>([])
+  const [stateEvents, setStateEvents] = useState<StateEventAuditRecord[]>([])
 
   const authHeaders = useMemo(() => {
     const trimmed = bearerToken.trim()
@@ -65,9 +101,16 @@ export const CcssAuditPage = () => {
       setIsLoading(true)
       setErrorMessage(null)
 
-      const [stylePatchResponse, transpileResponse] = await Promise.all([
+      const [stylePatchResponse, transpileResponse, stateEventResponse] = await Promise.all([
         apiGet<AuditListResponse<StylePatchAuditRecord>>('/api/ccss/audit/style-patches', {
-          query: { limit: parsedLimit },
+          query: {
+            limit: parsedLimit,
+            view: toQueryString(styleViewFilter),
+            stateId: toQueryString(styleStateFilter),
+            rejectionCode: toQueryString(styleRejectionFilter),
+            requestId: toQueryString(styleRequestFilter),
+            patchId: toQueryString(stylePatchFilter),
+          },
           headers: authHeaders,
         }),
         apiGet<AuditListResponse<TranspileAuditRecord>>('/api/ccss/audit/transpile-jobs', {
@@ -77,24 +120,50 @@ export const CcssAuditPage = () => {
           },
           headers: authHeaders,
         }),
+        apiGet<AuditListResponse<StateEventAuditRecord>>('/api/ccss/audit/state-events', {
+          query: {
+            limit: parsedLimit,
+            sessionKey: toQueryString(eventSessionFilter),
+            stateId: toQueryString(eventStateFilter),
+            eventName: toQueryString(eventNameFilter),
+            requestId: toQueryString(eventRequestFilter),
+            patchId: toQueryString(eventPatchFilter),
+          },
+          headers: authHeaders,
+        }),
       ])
 
       setStylePatches(stylePatchResponse.data)
       setTranspileJobs(transpileResponse.data)
+      setStateEvents(stateEventResponse.data)
       setLastLoadedAt(new Date().toLocaleString('ja-JP'))
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
-  }, [authHeaders, limitInput, statusFilter])
+  }, [
+    authHeaders,
+    eventNameFilter,
+    eventPatchFilter,
+    eventRequestFilter,
+    eventSessionFilter,
+    eventStateFilter,
+    limitInput,
+    statusFilter,
+    stylePatchFilter,
+    styleRejectionFilter,
+    styleRequestFilter,
+    styleStateFilter,
+    styleViewFilter,
+  ])
 
   return (
     <section className="page-card ccss-audit-card">
       <h1 className="page-heading">CCSS 監査ログビュー</h1>
       <p className="status-text">
         管理者API（<code>/api/ccss/audit/*</code>）から
-        style-patch / transpile の監査ログを確認します。
+        style-patch / transpile / state-events の監査ログを確認します。
       </p>
 
       <div className="ccss-audit-controls">
@@ -127,6 +196,78 @@ export const CcssAuditPage = () => {
         </button>
       </div>
 
+      <section className="ccss-audit-filter-box">
+        <h2 className="sub-heading">style-patch フィルタ</h2>
+        <div className="ccss-audit-filter-grid">
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="view（例: sample）"
+            value={styleViewFilter}
+            onChange={(event) => setStyleViewFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="stateId（例: ccss:sample:sample-panel:menu-open）"
+            value={styleStateFilter}
+            onChange={(event) => setStyleStateFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="rejectionCode（例: CCSS_INVALID_STATE）"
+            value={styleRejectionFilter}
+            onChange={(event) => setStyleRejectionFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="requestId"
+            value={styleRequestFilter}
+            onChange={(event) => setStyleRequestFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="patchId"
+            value={stylePatchFilter}
+            onChange={(event) => setStylePatchFilter(event.target.value)}
+          />
+        </div>
+      </section>
+
+      <section className="ccss-audit-filter-box">
+        <h2 className="sub-heading">state-events フィルタ</h2>
+        <div className="ccss-audit-filter-grid">
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="sessionKey"
+            value={eventSessionFilter}
+            onChange={(event) => setEventSessionFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="stateId"
+            value={eventStateFilter}
+            onChange={(event) => setEventStateFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="eventName（例: ui:state:set）"
+            value={eventNameFilter}
+            onChange={(event) => setEventNameFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="requestId"
+            value={eventRequestFilter}
+            onChange={(event) => setEventRequestFilter(event.target.value)}
+          />
+          <input
+            className="ccss-audit-filter-input"
+            placeholder="patchId"
+            value={eventPatchFilter}
+            onChange={(event) => setEventPatchFilter(event.target.value)}
+          />
+        </div>
+      </section>
+
       {errorMessage && (
         <p className="error-text" role="alert">
           {errorMessage}
@@ -140,9 +281,11 @@ export const CcssAuditPage = () => {
       <section className="ccss-audit-section">
         <h2 className="sub-heading">style-patch 監査 ({stylePatches.length})</h2>
         <ul className="ccss-audit-list">
+          {stylePatches.length === 0 && <li className="ccss-audit-empty">該当データはありません。</li>}
           {stylePatches.map((record) => (
             <li key={record.id}>
-              <strong>{record.created_at}</strong> / view: {record.view} / state: {record.state_id}
+              <strong>{record.created_at}</strong> / patch: {record.id} / request: {record.request_id}
+              {' '} / view: {record.view} / state: {record.state_id}
               {' '} / recipes: {record.applied_recipe_ids.length}
               {' '} / rejection: {record.rejection_code ?? '-'}
             </li>
@@ -153,10 +296,26 @@ export const CcssAuditPage = () => {
       <section className="ccss-audit-section">
         <h2 className="sub-heading">transpile 監査 ({transpileJobs.length})</h2>
         <ul className="ccss-audit-list">
+          {transpileJobs.length === 0 && <li className="ccss-audit-empty">該当データはありません。</li>}
           {transpileJobs.map((record) => (
             <li key={record.id}>
               <strong>{record.created_at}</strong> / status: {record.status} / source: {record.source_path}
               {' '} / errors: {record.errors.length} / warnings: {record.warnings.length}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="ccss-audit-section">
+        <h2 className="sub-heading">state-events 監査 ({stateEvents.length})</h2>
+        <ul className="ccss-audit-list">
+          {stateEvents.length === 0 && <li className="ccss-audit-empty">該当データはありません。</li>}
+          {stateEvents.map((record) => (
+            <li key={record.id}>
+              <strong>{record.created_at}</strong> / session: {record.session_key}
+              {' '} / event: {record.event_name} / state: {record.state_id}
+              {' '} / request: {record.request_id ?? '-'} / patch: {record.patch_id ?? '-'}
+              {' '} / payload: {summarizePayload(record.payload)}
             </li>
           ))}
         </ul>

@@ -1258,6 +1258,8 @@ app.get('/api/ccss/audit/style-patches', requireCcssAdmin, async (c) => {
   const view = c.req.query('view')?.trim()
   const stateId = c.req.query('stateId')?.trim()
   const rejectionCode = c.req.query('rejectionCode')?.trim()
+  const requestId = c.req.query('requestId')?.trim()
+  const patchId = c.req.query('patchId')?.trim()
 
   if (stateId && !CCSS_STATE_ID_PATTERN.test(stateId)) {
     return jsonCodeError(
@@ -1284,10 +1286,67 @@ app.get('/api/ccss/audit/style-patches', requireCcssAdmin, async (c) => {
   if (rejectionCode && rejectionCode.length > 0) {
     query = query.eq('rejection_code', rejectionCode)
   }
+  if (requestId && requestId.length > 0) {
+    query = query.eq('request_id', requestId)
+  }
+  if (patchId && patchId.length > 0) {
+    query = query.eq('id', patchId)
+  }
 
   const { data, error } = await query
   if (error) {
     return dbError(c, error, 'style-patch監査ログの取得に失敗しました')
+  }
+  return c.json({ data: data ?? [] })
+})
+
+app.get('/api/ccss/audit/state-events', requireCcssAdmin, async (c) => {
+  const limit = parseQueryLimit(c, c.req.query('limit'))
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const sessionKey = c.req.query('sessionKey')?.trim()
+  const stateId = c.req.query('stateId')?.trim()
+  const eventName = c.req.query('eventName')?.trim()
+  const requestId = c.req.query('requestId')?.trim()
+  const patchId = c.req.query('patchId')?.trim()
+
+  if (stateId && !CCSS_STATE_ID_PATTERN.test(stateId)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      'stateId は ccss:<page>:<component>:<state> 形式で指定してください。',
+      '例: ccss:sample:sample-panel:menu-open',
+    )
+  }
+
+  let query = supabase
+    .from('ccss_state_events')
+    .select('id,session_key,state_id,event_name,request_id,patch_id,payload,created_by,created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (sessionKey && sessionKey.length > 0) {
+    query = query.eq('session_key', sessionKey)
+  }
+  if (stateId && stateId.length > 0) {
+    query = query.eq('state_id', stateId)
+  }
+  if (eventName && eventName.length > 0) {
+    query = query.eq('event_name', eventName)
+  }
+  if (requestId && requestId.length > 0) {
+    query = query.eq('request_id', requestId)
+  }
+  if (patchId && patchId.length > 0) {
+    query = query.eq('patch_id', patchId)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    return dbError(c, error, 'state-events監査ログの取得に失敗しました')
   }
   return c.json({ data: data ?? [] })
 })

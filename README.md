@@ -100,7 +100,7 @@ pnpm ccss:checks
 `CCSS_STYLE_PATCH_AUDIT_ENABLED=true` を有効化すると、`style-patch` の成功/失敗が `ccss_style_patches` テーブルへ監査保存されます。
 `CCSS_TRANSPILE_AUDIT_ENABLED=true` を有効化すると、`transpile/validate` の成功/失敗が `ccss_transpile_jobs` テーブルへ監査保存されます。
 `CCSS_STATE_EVENT_AUDIT_ENABLED=true` を有効化すると、`POST /api/ccss/state-events` でUI状態遷移イベントを `ccss_state_events` テーブルへ監査保存できます。
-管理者JWTで `GET /api/ccss/audit/style-patches` / `GET /api/ccss/audit/transpile-jobs` を呼ぶと、監査ログ一覧を参照できます。
+管理者JWTで `GET /api/ccss/audit/style-patches` / `GET /api/ccss/audit/transpile-jobs` / `GET /api/ccss/audit/state-events` を呼ぶと、監査ログ一覧を参照できます。
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:manifest-check` で、manifestの必須項目/型/重複stateIdに加えて enum の `enumValues` 整合（空配列禁止・重複禁止・初期値包含）を検証できます。
 `pnpm ccss:selector-check` で、manifest.stateId とCSSセレクタ（`data-ccss-state` / `:checked` トグル）の対応を検証できます。
@@ -135,7 +135,7 @@ pnpm --filter frontend dev
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
 - `生成物を読み込む` 後に `対象state` を選択し、`style-patch API適用` を押すと、`applied recipes` と `state-events` の結果が表示されること
 - `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
-- `http://localhost:5173/ccss-audit` を開き、管理者Bearer tokenで監査ログ一覧を取得できること
+- `http://localhost:5173/ccss-audit` を開き、管理者Bearer tokenで `style-patch / transpile / state-events` 監査ログ一覧を取得できること
 
 #### 2. 異常系（サブセット外入力）
 
