@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from './components/AppLink'
+import { CcssAuditPage } from './pages/CcssAuditPage'
 import { CcssPocPage } from './pages/CcssPocPage'
 import { CreatePage } from './pages/CreatePage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -103,6 +104,10 @@ function App() {
       return <CcssPocPage />
     }
 
+    if (pathname === '/ccss-audit') {
+      return <CcssAuditPage />
+    }
+
     if (editStageId) {
       return <EditPage stageId={editStageId} />
     }
@@ -163,6 +168,12 @@ function App() {
             className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
           >
             CCSS PoC
+          </AppLink>
+          <AppLink
+            to="/ccss-audit"
+            className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
+          >
+            CCSS監査
           </AppLink>
         </nav>
       </header>

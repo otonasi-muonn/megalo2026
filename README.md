@@ -135,6 +135,7 @@ pnpm --filter frontend dev
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
 - `生成物を読み込む` 後に `対象state` を選択し、`style-patch API適用` を押すと、`applied recipes` と `state-events` の結果が表示されること
 - `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
+- `http://localhost:5173/ccss-audit` を開き、管理者Bearer tokenで監査ログ一覧を取得できること
 
 #### 2. 異常系（サブセット外入力）
 
