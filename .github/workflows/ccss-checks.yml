@@ -1,19 +1,32 @@
 name: CCSS Checks
 
 on:
-  pull_request:
-    paths:
+  push:
+    branches:
+      - develop
+    paths: &ccss_paths
       - 'apps/**'
       - 'packages/**'
       - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'README.md'
       - '.github/workflows/ccss-checks.yml'
+  pull_request:
+    paths: *ccss_paths
   workflow_dispatch:
+
+concurrency:
+  group: ccss-checks-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ccss-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
