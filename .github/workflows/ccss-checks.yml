@@ -47,3 +47,15 @@ jobs:
 
       - name: Run CCSS checks
         run: pnpm ccss:checks
+
+      - name: Upload CCSS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccss-generated-assets
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            apps/frontend/public/ccss/ui.generated.c
+            apps/frontend/public/ccss/ui.generated.css
+            apps/frontend/public/ccss/ccss.manifest.json

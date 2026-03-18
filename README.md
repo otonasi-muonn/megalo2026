@@ -100,6 +100,7 @@ pnpm ccss:checks
 `pnpm ccss:smoke` で、CCSS APIの最小疎通（style-patch正常系 / transpile validate認証境界）を検証できます。
 `pnpm ccss:checks` で、CCSS関連の検証一式（compiler/build/contract/smoke/frontend/backend）をまとめて実行できます。
 `.github/workflows/ccss-checks.yml` は PR と `develop` への push で `pnpm ccss:checks` を実行します。
+workflow完了時には `apps/frontend/public/ccss` の生成物が `ccss-generated-assets` として7日間保存されます。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
