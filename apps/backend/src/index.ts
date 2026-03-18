@@ -1511,6 +1511,91 @@ app.get('/api/ccss/audit/session-trace', requireCcssAdmin, async (c) => {
   })
 })
 
+app.get('/api/ccss/audit/summary', requireCcssAdmin, async (c) => {
+  const limit = parseQueryLimit(c, c.req.query('limit'), 100)
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const [styleResult, transpileResult, stateEventResult] = await Promise.all([
+    supabase
+      .from('ccss_style_patches')
+      .select('rejection_code,created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ccss_transpile_jobs')
+      .select('status,created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ccss_state_events')
+      .select('event_name,patch_id,created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ])
+
+  if (styleResult.error) {
+    return dbError(c, styleResult.error, 'style-patch監査サマリーの取得に失敗しました')
+  }
+  if (transpileResult.error) {
+    return dbError(c, transpileResult.error, 'transpile監査サマリーの取得に失敗しました')
+  }
+  if (stateEventResult.error) {
+    return dbError(c, stateEventResult.error, 'state-events監査サマリーの取得に失敗しました')
+  }
+
+  const styleRows = styleResult.data ?? []
+  const rejectionCodes: Record<string, number> = {}
+  let rejectedCount = 0
+  for (const row of styleRows) {
+    if (!row.rejection_code) {
+      continue
+    }
+    rejectedCount += 1
+    rejectionCodes[row.rejection_code] = (rejectionCodes[row.rejection_code] ?? 0) + 1
+  }
+
+  const transpileRows = transpileResult.data ?? []
+  const statusCounts = Object.fromEntries(
+    CCSS_TRANSPILE_JOB_STATUSES.map((status) => [status, 0]),
+  ) as Record<CcssTranspileJobStatus, number>
+  for (const row of transpileRows) {
+    statusCounts[row.status] += 1
+  }
+
+  const stateEventRows = stateEventResult.data ?? []
+  const eventNames: Record<string, number> = {}
+  let withPatchIdCount = 0
+  for (const row of stateEventRows) {
+    eventNames[row.event_name] = (eventNames[row.event_name] ?? 0) + 1
+    if (row.patch_id && row.patch_id.length > 0) {
+      withPatchIdCount += 1
+    }
+  }
+
+  return c.json({
+    window: {
+      limit,
+    },
+    stylePatches: {
+      total: styleRows.length,
+      rejectedCount,
+      rejectionCodes,
+    },
+    transpileJobs: {
+      total: transpileRows.length,
+      statusCounts,
+    },
+    stateEvents: {
+      total: stateEventRows.length,
+      eventNames,
+      withPatchIdCount,
+      withoutPatchIdCount: stateEventRows.length - withPatchIdCount,
+    },
+  })
+})
+
 app.get('/api/ccss/audit/transpile-jobs', requireCcssAdmin, async (c) => {
   const limit = parseQueryLimit(c, c.req.query('limit'))
   if (limit instanceof Response) {

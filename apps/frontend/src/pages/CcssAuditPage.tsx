@@ -64,6 +64,27 @@ type SessionTraceResponse = {
   }
 }
 
+type AuditSummaryResponse = {
+  window: {
+    limit: number
+  }
+  stylePatches: {
+    total: number
+    rejectedCount: number
+    rejectionCodes: Record<string, number>
+  }
+  transpileJobs: {
+    total: number
+    statusCounts: Record<'queued' | 'running' | 'succeeded' | 'failed', number>
+  }
+  stateEvents: {
+    total: number
+    eventNames: Record<string, number>
+    withPatchIdCount: number
+    withoutPatchIdCount: number
+  }
+}
+
 type AuditListResponse<TRecord> = {
   data: TRecord[]
 }
@@ -86,6 +107,19 @@ const summarizePayload = (payload: Record<string, unknown>): string => {
   }
   const preview = keys.slice(0, 3).join(', ')
   return keys.length > 3 ? `${preview} ... (${keys.length} keys)` : preview
+}
+
+const summarizeCountMap = (value: Record<string, number>): string => {
+  const entries = Object.entries(value)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+  if (entries.length === 0) {
+    return '-'
+  }
+  return entries
+    .slice(0, 6)
+    .map(([key, count]) => `${key}:${count}`)
+    .join(', ')
 }
 
 export const CcssAuditPage = () => {
@@ -111,6 +145,7 @@ export const CcssAuditPage = () => {
   const [sessionTrace, setSessionTrace] = useState<SessionTraceItem[]>([])
   const [sessionTraceSessionKey, setSessionTraceSessionKey] = useState<string | null>(null)
   const [sessionTraceStats, setSessionTraceStats] = useState<SessionTraceResponse['stats'] | null>(null)
+  const [auditSummary, setAuditSummary] = useState<AuditSummaryResponse | null>(null)
 
   const authHeaders = useMemo(() => {
     const trimmed = bearerToken.trim()
@@ -136,7 +171,7 @@ export const CcssAuditPage = () => {
       setErrorMessage(null)
 
       const sessionTraceTarget = toQueryString(eventSessionFilter)
-      const [stylePatchResponse, transpileResponse, stateEventResponse, sessionTraceResponse] = await Promise.all([
+      const [stylePatchResponse, transpileResponse, stateEventResponse, sessionTraceResponse, summaryResponse] = await Promise.all([
         apiGet<AuditListResponse<StylePatchAuditRecord>>('/api/ccss/audit/style-patches', {
           query: {
             limit: parsedLimit,
@@ -175,11 +210,18 @@ export const CcssAuditPage = () => {
               headers: authHeaders,
             })
           : Promise.resolve(null),
+        apiGet<AuditSummaryResponse>('/api/ccss/audit/summary', {
+          query: {
+            limit: parsedLimit,
+          },
+          headers: authHeaders,
+        }),
       ])
 
       setStylePatches(stylePatchResponse.data)
       setTranspileJobs(transpileResponse.data)
       setStateEvents(stateEventResponse.data)
+      setAuditSummary(summaryResponse)
       if (sessionTraceResponse) {
         setSessionTraceSessionKey(sessionTraceResponse.sessionKey)
         setSessionTrace(sessionTraceResponse.data)
@@ -216,7 +258,7 @@ export const CcssAuditPage = () => {
       <h1 className="page-heading">CCSS 監査ログビュー</h1>
       <p className="status-text">
         管理者API（<code>/api/ccss/audit/*</code>）から
-        style-patch / transpile / state-events / session-trace の監査ログを確認します。
+        summary / style-patch / transpile / state-events / session-trace の監査ログを確認します。
       </p>
 
       <div className="ccss-audit-controls">
@@ -330,6 +372,35 @@ export const CcssAuditPage = () => {
       {lastLoadedAt && (
         <p className="status-text">最終取得: {lastLoadedAt}</p>
       )}
+
+      <section className="ccss-audit-section">
+        <h2 className="sub-heading">audit summary</h2>
+        {!auditSummary && (
+          <p className="status-text">監査ログ取得後にサマリーを表示します。</p>
+        )}
+        {auditSummary && (
+          <ul className="ccss-audit-list">
+            <li>
+              <strong>window</strong>: 最新 {auditSummary.window.limit} 件
+            </li>
+            <li>
+              <strong>style-patch</strong>: total={auditSummary.stylePatches.total}
+              {' '} / rejected={auditSummary.stylePatches.rejectedCount}
+              {' '} / rejectionCodes={summarizeCountMap(auditSummary.stylePatches.rejectionCodes)}
+            </li>
+            <li>
+              <strong>transpile</strong>: total={auditSummary.transpileJobs.total}
+              {' '} / status={summarizeCountMap(auditSummary.transpileJobs.statusCounts)}
+            </li>
+            <li>
+              <strong>state-events</strong>: total={auditSummary.stateEvents.total}
+              {' '} / withPatch={auditSummary.stateEvents.withPatchIdCount}
+              {' '} / withoutPatch={auditSummary.stateEvents.withoutPatchIdCount}
+              {' '} / eventNames={summarizeCountMap(auditSummary.stateEvents.eventNames)}
+            </li>
+          </ul>
+        )}
+      </section>
 
       <section className="ccss-audit-section">
         <h2 className="sub-heading">style-patch 監査 ({stylePatches.length})</h2>
