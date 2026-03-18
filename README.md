@@ -54,6 +54,7 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET=<google_client_secret>
 
 - `publishable_key` / `secret_key` は `pnpm dlx supabase status` で確認できます。
 - `apps/backend/.env` は `apps/backend/.env.example` から作成できます。
+- 動的OGP（`/play/:id`）でステージ情報を埋め込む場合、フロントの実行環境（Vercel）へ `OGP_STAGE_API_BASE_URL`（例: `https://<backend-domain>`）を設定してください。
 
 ### 3. Supabase ローカル環境の起動
 
@@ -109,6 +110,24 @@ pnpm --filter frontend lint
 pnpm --filter frontend build
 pnpm --filter hono typecheck
 ```
+
+## 🔗 動的OGP（Issue #23）
+
+- `apps/frontend/api/ogp/[stageId].ts` が、ステージIDごとの `og:*` / `twitter:*` メタを返します（タイトル・説明・URL・画像）。
+- `apps/frontend/api/ogp-image/[stageId].ts` が、ステージID入りの動的OGP画像（SVG）を生成します。
+- `apps/frontend/vercel.json` で、SNSクローラー系 User-Agent の `/play/:stageId` リクエストを OGP関数へリライトします。
+
+確認例（ローカルVercel実行時）:
+
+```bash
+curl -A "Twitterbot" http://localhost:5173/play/<stage-id>
+curl http://localhost:5173/api/ogp-image/<stage-id>?title=test-stage
+```
+
+期待結果:
+
+- 1つ目のレスポンスHTMLに `og:title` / `twitter:title` / `og:image` が含まれること
+- 2つ目が `image/svg+xml` として返ること
 
 ## 🧪 CCSSトランスパイラPoC（独立CLI）
 
