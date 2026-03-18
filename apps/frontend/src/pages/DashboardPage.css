@@ -157,6 +157,24 @@
   background: rgba(217, 239, 252, 0.92);
 }
 
+.page-card .stage-actions .test-play-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  background: url('/images/water2.png') center / 100% 100% no-repeat;
+  color: #0f3f5a;
+}
+
+.page-card .stage-actions .test-play-button:hover {
+  background: url('/images/water2.png') center / 100% 100% no-repeat;
+  border-color: transparent;
+  color: #0c3348;
+}
+
 .page-card .stage-actions .stage-delete-button {
   background: rgba(255, 230, 230, 0.82);
   border-color: #d7a0a0;
