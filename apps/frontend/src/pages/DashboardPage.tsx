@@ -212,62 +212,63 @@ export const DashboardPage = () => {
 
       {!isLoading && !errorMessage && (
         <>
-          <p className="status-text">
-            自分のステージ: {pagination.total}件（ページ {pagination.page}/
-            {pagination.total_pages || 1}）
-          </p>
-          <div className="search-controls">
-            <label htmlFor="stage-search-input">ステージ名検索:</label>
-            <input
-              id="stage-search-input"
-              type="text"
-              value={searchKeyword}
-              onChange={(event) => setSearchKeyword(event.target.value)}
-              placeholder="ステージ名を入力"
-            />
-          </div>
-          <div className="sort-controls">
-            <label htmlFor="stage-sort-select">並べ替え:</label>
-            <div className="sort-select-wrap">
-              {sortKey === 'favorite' && (
-                <span className="sort-key-icon" aria-hidden="true">
-                  <Heart />
-                </span>
-              )}
-              {sortKey === 'created' && (
-                <span className="sort-key-icon" aria-hidden="true">
-                  <PencilLine />
-                </span>
-              )}
-              {sortKey === 'name' && (
-                <span className="sort-key-icon" aria-hidden="true">
-                  <SpellCheck />
-                </span>
-              )}
-              <select
-                id="stage-sort-select"
-                className={
-                  sortKey === 'favorite' || sortKey === 'created' || sortKey === 'name'
-                    ? 'with-icon'
-                    : ''
-                }
-                value={sortKey}
-                onChange={(event) => setSortKey(event.target.value as StageSortKey)}
-              >
-                <option value="favorite">お気に入り順</option>
-                <option value="created">制作順</option>
-                <option value="name">名前順</option>
-              </select>
+          <div className="dashboard-toolbar">
+            <div className="dashboard-toolbar-left">
+              <div className="search-controls">
+                <label htmlFor="stage-search-input">ステージ名検索:</label>
+                <input
+                  id="stage-search-input"
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(event) => setSearchKeyword(event.target.value)}
+                  placeholder="ステージ名を入力"
+                />
+              </div>
+              <div className="sort-controls">
+                <label htmlFor="stage-sort-select">並べ替え:</label>
+                <div className="sort-select-wrap">
+                  {sortKey === 'favorite' && (
+                    <span className="sort-key-icon" aria-hidden="true">
+                      <Heart />
+                    </span>
+                  )}
+                  {sortKey === 'created' && (
+                    <span className="sort-key-icon" aria-hidden="true">
+                      <PencilLine />
+                    </span>
+                  )}
+                  {sortKey === 'name' && (
+                    <span className="sort-key-icon" aria-hidden="true">
+                      <SpellCheck />
+                    </span>
+                  )}
+                  <select
+                    id="stage-sort-select"
+                    className={
+                      sortKey === 'favorite' || sortKey === 'created' || sortKey === 'name'
+                        ? 'with-icon'
+                        : ''
+                    }
+                    value={sortKey}
+                    onChange={(event) => setSortKey(event.target.value as StageSortKey)}
+                  >
+                    <option value="favorite">お気に入り順</option>
+                    <option value="created">制作順</option>
+                    <option value="name">名前順</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="button secondary sort-order-button"
+                  onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                  aria-label={`並び順を${sortOrder === 'desc' ? '昇順' : '降順'}に変更`}
+                >
+                  <ArrowDownUp />
+                  {sortOrder === 'desc' ? '降順' : '昇順'}
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              className="button secondary sort-order-button"
-              onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-              aria-label={`並び順を${sortOrder === 'desc' ? '昇順' : '降順'}に変更`}
-            >
-              <ArrowDownUp />
-              {sortOrder === 'desc' ? '降順' : '昇順'}
-            </button>
+            <p className="status-text status-text-right stage-count-text">自分のステージ: {pagination.total}件</p>
           </div>
           {sortedStages.length === 0 && <p className="status-text">作成したステージはまだありません。</p>}
           <ul className="stage-list">

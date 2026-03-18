@@ -22,6 +22,29 @@
   text-shadow: 0 1px 4px rgba(7, 49, 80, 0.35);
 }
 
+.page-card.dashboard-page .status-text-right {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.page-card .dashboard-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.page-card .dashboard-toolbar-left {
+  display: grid;
+  gap: 6px;
+}
+
+.page-card .stage-count-text {
+  margin-top: 8px;
+  margin-right: 20px;
+  white-space: nowrap;
+}
+
 .page-card.dashboard-page .error-text {
   color: #7b1f1f;
   background: rgba(255, 235, 235, 0.86);
@@ -34,7 +57,7 @@
   width: 100%;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(3, 216px);
+  grid-template-columns: repeat(4, 216px);
   grid-auto-flow: row;
   gap: 16px;
   justify-content: center;
@@ -179,7 +202,7 @@
 
 .page-card .sort-controls .sort-order-button {
   margin-left: auto;
-  margin-right: 64px;
+  margin-right: 32px;
   padding: 4px 8px;
   font-size: 12px;
   border-radius: 6px;
@@ -191,6 +214,18 @@
 .page-card .sort-controls .sort-order-button svg {
   width: 14px;
   height: 14px;
+}
+
+@media (max-width: 900px) {
+  .page-card .dashboard-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-card .stage-count-text {
+    align-self: flex-end;
+    margin-top: 0;
+  }
 }
 
 .page-card .stage-card {
