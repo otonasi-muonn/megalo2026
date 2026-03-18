@@ -138,7 +138,16 @@
   display: flex;
   gap: 8px;
   justify-content: center;
+  align-items: flex-start;
   margin-top: 10px;
+}
+
+.page-card .stage-actions .test-play-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: -7px;
 }
 
 .page-card .stage-actions .button {
@@ -165,14 +174,36 @@
   min-height: 34px;
   padding: 6px 14px;
   border: 1px solid transparent;
-  background: url('/images/water2.png') center / 100% 100% no-repeat;
+  position: relative;
+  z-index: 0;
+  background: transparent;
   color: #0f3f5a;
 }
 
-.page-card .stage-actions .test-play-button:hover {
+.page-card .stage-actions .test-play-button::before {
+  content: '';
+  position: absolute;
+  inset: -3px -5px;
+  z-index: -1;
   background: url('/images/water2.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-actions .test-play-button:hover {
   border-color: transparent;
   color: #0c3348;
+}
+
+.page-card .stage-actions .test-play-button:hover::before {
+  filter: brightness(0.98);
+}
+
+.page-card .stage-actions .test-play-under-image {
+  width: 96px;
+  height: 12px;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .page-card .stage-actions .stage-delete-button {
@@ -185,13 +216,36 @@
   background: rgba(255, 214, 214, 0.92);
 }
 
+.page-card .stage-actions .action-with-label {
+  position: relative;
+  z-index: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.page-card .stage-actions .action-with-label::before {
+  content: '';
+  position: absolute;
+  inset: -3px -5px;
+  z-index: -1;
+  background: url('/images/water1.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-actions .action-with-label:hover,
+.page-card .stage-actions .action-with-label:focus-visible {
+  background: transparent;
+  border-color: transparent;
+}
+
+.page-card .stage-actions .action-with-label:hover::before,
+.page-card .stage-actions .action-with-label:focus-visible::before {
+  filter: brightness(0.98);
+}
+
 .page-card .stage-actions .button svg {
   width: 16px;
   height: 16px;
-}
-
-.page-card .stage-actions .action-with-label {
-  position: relative;
 }
 
 .page-card .stage-actions .action-label {
@@ -491,8 +545,24 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 0;
+  padding: 2px 5px;
   line-height: 1;
+  position: relative;
+  z-index: 0;
+}
+
+.page-card .stage-favorite-button::before {
+  content: '';
+  position: absolute;
+  inset: -4px -3px;
+  z-index: -1;
+  background: url('/images/biue.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.page-card .stage-favorite-button:hover::before,
+.page-card .stage-favorite-button:focus-visible::before {
+  filter: brightness(0.98);
 }
 
 .page-card .stage-favorite-icon {
@@ -504,6 +574,10 @@
 
 .page-card .stage-favorite-button.active {
   color: #e65072;
+}
+
+.page-card .stage-favorite-button.active::before {
+  background: url('/images/red.png') center / 100% 100% no-repeat;
 }
 
 .page-card .stage-favorite-button.inactive {

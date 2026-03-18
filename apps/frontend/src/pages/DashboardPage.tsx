@@ -372,7 +372,7 @@ export const DashboardPage = () => {
                     <PencilLine />
                     <span className="action-label">編集</span>
                   </AppLink>
-                  <AppLink to={`/play/${stage.id}`} className="button secondary">
+                  <AppLink to={`/play/${stage.id}`} className="button secondary test-play-button">
                     テストプレイ
                   </AppLink>
                   <button
