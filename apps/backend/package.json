@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "ccss:style-patch:contract": "tsx scripts/ccss-style-patch-contract.ts"
+    "ccss:style-patch:contract": "tsx scripts/ccss-style-patch-contract.ts",
+    "ccss:recipe-integrity": "tsx scripts/ccss-recipe-integrity-check.ts"
   },
   "dependencies": {
     "@ccss/compiler": "workspace:*",

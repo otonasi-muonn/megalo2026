@@ -72,6 +72,7 @@ pnpm ccss:compiler:typecheck
 pnpm ccss:compiler:sample
 pnpm ccss:assets:sync
 pnpm ccss:style-patch:contract
+pnpm ccss:recipe-integrity
 ```
 
 `pnpm ccss:compiler:sample` 実行後、以下が生成されます。
@@ -87,6 +88,7 @@ pnpm ccss:style-patch:contract
 - `apps/frontend/public/ccss/ccss.manifest.json`
 
 `pnpm ccss:style-patch:contract` で、`style-patch` APIの契約（危険トークン拒否・範囲外拒否・`cssText` 非返却）を自動検証できます。
+`pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 

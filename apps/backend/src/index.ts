@@ -4,6 +4,7 @@ import { createClient, type PostgrestError } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { Hono, type Context, type MiddlewareHandler } from 'hono'
 import { cors } from 'hono/cors'
+import { CCSS_RECIPE_REGISTRY } from './ccssRecipes.js'
 import { createEmptyStageData, isStageData } from './types/stage.js'
 import type { Database } from './types/database.js'
 
@@ -17,13 +18,6 @@ type AppContext = Context<AppBindings>
 type ErrorStatus = 400 | 401 | 403 | 404 | 422 | 429 | 500
 type StageRecord = Database['public']['Tables']['stages']['Row']
 type StageListItem = Omit<StageRecord, 'stage_data'>
-type CcssStyleRecipe = {
-  view: string
-  stateId: string
-  recipeId: string
-  targetClass: string
-  addClasses: string[]
-}
 type RateLimitBucket = {
   count: number
   resetAt: number
@@ -36,22 +30,6 @@ const UUID_PATTERN =
 const CCSS_STATE_ID_PATTERN = /^ccss:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/
 const CCSS_RULESET_VERSION = '2026-03-17'
 const CCSS_PATCH_TTL_MS = 3000
-const CCSS_RECIPE_REGISTRY: CcssStyleRecipe[] = [
-  {
-    view: 'sample',
-    stateId: 'ccss:sample:sample-panel:menu-open',
-    recipeId: 'rcpDashboardStageCardMenuOpenV1',
-    targetClass: 'ccss-dashboard-stage-card',
-    addClasses: ['is-menu-open'],
-  },
-  {
-    view: 'sample',
-    stateId: 'ccss:sample:sample-panel:menu-open',
-    recipeId: 'rcpSharedToastVisibleV1',
-    targetClass: 'ccss-toast',
-    addClasses: ['is-visible'],
-  },
-]
 const CCSS_UNSAFE_TOKEN_CHECKS: Array<{ label: string; pattern: RegExp }> = [
   { label: '@import', pattern: /@import/i },
   { label: 'url(', pattern: /url\s*\(/i },

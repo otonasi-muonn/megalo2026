@@ -12,6 +12,7 @@
     "ccss:compiler:sample": "pnpm --filter @ccss/compiler run sample",
     "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
     "ccss:style-patch:contract": "pnpm --filter hono run ccss:style-patch:contract",
+    "ccss:recipe-integrity": "pnpm --filter hono run ccss:recipe-integrity",
     "ccss:poc:prepare": "pnpm ccss:compiler:sample && pnpm ccss:assets:sync",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

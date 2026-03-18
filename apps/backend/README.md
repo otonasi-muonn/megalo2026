@@ -83,8 +83,10 @@ pnpm dev
 
 ```powershell
 pnpm run ccss:style-patch:contract
+pnpm run ccss:recipe-integrity
 ```
 
 期待結果:
 
 - `CCSS style-patch contract check: PASSED` が表示されること
+- `CCSS recipe integrity check: PASSED` が表示されること
