@@ -70,11 +70,48 @@ const getQueryParam = (search: string, key: string): string | null => {
   return null
 }
 
-const parseResultQuery = (search: string): { stageId?: string; cleared: boolean } => {
+const parseNonNegativeInt = (rawValue: string | null): number | undefined => {
+  if (!rawValue) {
+    return undefined
+  }
+  const value = Number.parseInt(rawValue, 10)
+  if (!Number.isFinite(value) || value < 0) {
+    return undefined
+  }
+  return value
+}
+
+type ResultQuery = {
+  stageId?: string
+  cleared: boolean
+  logStatus?: 'success' | 'failed'
+  playLogId?: string
+  playCount?: number
+  clearCount?: number
+  logError?: string
+}
+
+const parseResultQuery = (search: string): ResultQuery => {
   const stageIdRaw = getQueryParam(search, 'stageId')
   const stageId = stageIdRaw && UUID_PATTERN.test(stageIdRaw) ? stageIdRaw : undefined
   const cleared = getQueryParam(search, 'cleared') === 'true'
-  return { stageId, cleared }
+  const logStatusRaw = getQueryParam(search, 'logStatus')
+  const logStatus =
+    logStatusRaw === 'success' || logStatusRaw === 'failed' ? logStatusRaw : undefined
+  const playLogId = getQueryParam(search, 'playLogId') ?? undefined
+  const playCount = parseNonNegativeInt(getQueryParam(search, 'playCount'))
+  const clearCount = parseNonNegativeInt(getQueryParam(search, 'clearCount'))
+  const logError = getQueryParam(search, 'logError') ?? undefined
+
+  return {
+    stageId,
+    cleared,
+    logStatus,
+    playLogId,
+    playCount,
+    clearCount,
+    logError,
+  }
 }
 
 const isRouteActive = (currentPathname: string, path: string): boolean => {
@@ -269,6 +306,11 @@ function App() {
         <ResultPage
           stageId={resultQuery.stageId}
           cleared={resultQuery.cleared}
+          logStatus={resultQuery.logStatus}
+          playLogId={resultQuery.playLogId}
+          playCount={resultQuery.playCount}
+          clearCount={resultQuery.clearCount}
+          logError={resultQuery.logError}
         />
       )
     }

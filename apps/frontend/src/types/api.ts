@@ -49,6 +49,12 @@ export type StageResponse = ApiEnvelope<StageDto>
 
 export type ProfileResponse = ApiEnvelope<ProfileDto>
 
+export type StageDeleteResponse = ApiEnvelope<{
+  id: string
+  deleted: boolean
+  deleted_at: string
+}>
+
 export interface ProfileLikesResponse extends ApiEnvelope<StageListItemDto[]> {
   total: number
 }

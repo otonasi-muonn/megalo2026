@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
 import type { Pagination, StageListItemDto, StageListResponse } from '../types/api'
 import { apiGet } from '../utils/api'
+import { copyStagePlayUrl } from '../utils/stageShare'
 import '../styles/HomePage.css'
 
 const initialPagination: Pagination = {
@@ -19,6 +20,8 @@ export const HomePage = () => {
   const [pagination, setPagination] = useState<Pagination>(initialPagination)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -53,6 +56,17 @@ export const HomePage = () => {
 
     return () => controller.abort()
   }, [])
+
+  const handleCopyShareLink = async (stage: StageListItemDto) => {
+    try {
+      const stageUrl = await copyStagePlayUrl(stage.id)
+      setShareMessage(`「${stage.title}」の共有リンクをコピーしました: ${stageUrl}`)
+      setShareErrorMessage(null)
+    } catch (error) {
+      setShareErrorMessage(getErrorMessage(error))
+      setShareMessage(null)
+    }
+  }
 
   return (
     <>
@@ -97,6 +111,12 @@ export const HomePage = () => {
             読み込み失敗: {errorMessage}
           </p>
         )}
+        {shareMessage && <p className="success-text">{shareMessage}</p>}
+        {shareErrorMessage && (
+          <p className="error-text" role="alert">
+            共有リンクのコピー失敗: {shareErrorMessage}
+          </p>
+        )}
 
         {!isLoading && !errorMessage && (
           <>
@@ -114,9 +134,20 @@ export const HomePage = () => {
                       {stage.like_count}
                     </p>
                   </div>
-                  <AppLink to={`/play/${stage.id}`} className="button secondary">
-                    プレイ
-                  </AppLink>
+                  <div className="inline-actions">
+                    <AppLink to={`/play/${stage.id}`} className="button secondary">
+                      プレイ
+                    </AppLink>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => {
+                        void handleCopyShareLink(stage)
+                      }}
+                    >
+                      共有リンクをコピー
+                    </button>
+                  </div>
                 </li>
               ))}
               {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
