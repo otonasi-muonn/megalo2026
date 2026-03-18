@@ -7,7 +7,9 @@
 .page-card.dashboard-page {
   background: url('/images/back.png') center / cover no-repeat;
   color: #e9f8ff;
-  border-color: rgba(177, 224, 246, 0.45);
+  border: 1px solid transparent;
+  outline: none;
+  box-shadow: none;
   font-family: 'Zen Maru Gothic', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
 }
 
@@ -349,7 +351,7 @@
 
 .page-card .stage-create-card {
   width: 100%;
-  height: 240px;
+  height: 200px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -476,8 +478,8 @@
 }
 
 .page-card .stage-favorite-icon {
-  width: 12px;
-  height: 12px;
+  width: 4px;
+  height: 4px;
   display: block;
   object-fit: contain;
 }
