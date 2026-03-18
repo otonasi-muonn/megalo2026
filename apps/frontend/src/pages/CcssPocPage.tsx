@@ -111,6 +111,7 @@ export const CcssPocPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
   const [sourceInput, setSourceInput] = useState(DEFAULT_VALIDATE_SOURCE)
+  const [validateBearerToken, setValidateBearerToken] = useState('')
   const [validateResult, setValidateResult] = useState<TranspileValidateResponse | null>(null)
 
   const firstState = useMemo(() => manifest?.states[0] ?? null, [manifest])
@@ -207,18 +208,29 @@ export const CcssPocPage = () => {
     try {
       setIsValidatingSource(true)
       setErrorMessage(null)
+      const trimmedToken = validateBearerToken.trim()
 
-      const response = await apiPost<TranspileValidateResponse>('/api/ccss/transpile/validate', {
-        source: sourceInput,
-        sourcePath: 'inline.tsx',
-      })
+      const response = await apiPost<TranspileValidateResponse>(
+        '/api/ccss/transpile/validate',
+        {
+          source: sourceInput,
+          sourcePath: 'inline.tsx',
+        },
+        trimmedToken.length > 0
+          ? {
+              headers: {
+                Authorization: `Bearer ${trimmedToken}`,
+              },
+            }
+          : undefined,
+      )
       setValidateResult(response)
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
       setIsValidatingSource(false)
     }
-  }, [sourceInput])
+  }, [sourceInput, validateBearerToken])
 
   useEffect(() => {
     const root = uiRootRef.current
@@ -341,6 +353,12 @@ export const CcssPocPage = () => {
         <p className="status-text">
           <code>POST /api/ccss/transpile/validate</code> で、Reactサブセット適合を検証します。
         </p>
+          <input
+            className="ccss-token-input"
+            placeholder="Bearer token（管理者のみ）"
+            value={validateBearerToken}
+            onChange={(event) => setValidateBearerToken(event.target.value)}
+          />
         <textarea
           className="ccss-source-input"
           value={sourceInput}

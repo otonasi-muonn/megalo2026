@@ -67,9 +67,11 @@ pnpm dev
 - 出力: `recipeIds`, `classList`, `patchId`, `ttlMs`, `rulesetVersion`
 - セキュリティ: 危険トークン（`@import`, `url(`, `expression(`, `<style`）を検知した入力は `422` で拒否します。
 
-`POST /api/ccss/transpile/validate`（認証任意）
+`POST /api/ccss/transpile/validate`（管理者認証必須）
 
 - 入力: `source`（必須文字列）, `sourcePath`（任意文字列）
 - 出力（成功）: `ok: true`, `component`（name/stateCount/stateNames）, `errors: []`
 - 出力（失敗）: `ok: false`, `errors`（行・列付き）
 - 用途: frontend PoC上で、Reactサブセット適合を即時検証します。
+- 認証: 管理者ユーザーのみ（`CCSS_ADMIN_USER_IDS` に UUID をカンマ区切りで設定）
+- `CCSS_ADMIN_USER_IDS` 未設定時は `500 CCSS_ADMIN_CONFIG_MISSING` を返します。

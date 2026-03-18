@@ -37,6 +37,14 @@
   resize: vertical;
 }
 
+.ccss-token-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
 .ccss-validate-result {
   display: grid;
   gap: 8px;

@@ -63,6 +63,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isUuid = (value: string): boolean => UUID_PATTERN.test(value)
 
+const parseCsv = (value: string | undefined): string[] =>
+  (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+
+const ccssAdminUserIds = new Set(parseCsv(process.env.CCSS_ADMIN_USER_IDS).filter(isUuid))
+
 const getRequiredEnv = (name: string): string => {
   const value = process.env[name]?.trim()
   if (!value) {
@@ -252,6 +260,41 @@ const optionalAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const userId = await verifyAccessToken(token)
   if (!userId) {
     return jsonError(c, 401, '認証トークンが無効です。')
+  }
+
+  c.set('authUserId', userId)
+  await next()
+}
+
+const requireCcssAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
+  const token = extractBearerToken(c.req.header('Authorization'))
+  if (!token) {
+    return jsonError(c, 401, '認証トークンが必要です。')
+  }
+
+  const userId = await verifyAccessToken(token)
+  if (!userId) {
+    return jsonError(c, 401, '認証トークンが無効です。')
+  }
+
+  if (ccssAdminUserIds.size === 0) {
+    return jsonCodeError(
+      c,
+      500,
+      'CCSS_ADMIN_CONFIG_MISSING',
+      'CCSS管理者ユーザーが未設定です。',
+      'CCSS_ADMIN_USER_IDS に管理者UUIDをカンマ区切りで設定してください。',
+    )
+  }
+
+  if (!ccssAdminUserIds.has(userId)) {
+    return jsonCodeError(
+      c,
+      403,
+      'CCSS_ADMIN_REQUIRED',
+      'CCSS transpile validate API は管理者のみ実行できます。',
+      '管理者として登録されたユーザーで再試行してください。',
+    )
   }
 
   c.set('authUserId', userId)
@@ -869,7 +912,7 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
   })
 })
 
-app.post('/api/ccss/transpile/validate', optionalAuth, async (c) => {
+app.post('/api/ccss/transpile/validate', requireCcssAdmin, async (c) => {
   const bodyResult = await readJsonObject(c)
   if (bodyResult instanceof Response) {
     return bodyResult

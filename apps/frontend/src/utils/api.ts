@@ -4,6 +4,7 @@ interface RequestOptions {
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
+  headers?: Record<string, string>
 }
 
 const API_BASE_URL =
@@ -34,6 +35,7 @@ const requestJson = async <TResponse>(
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...options.headers,
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,

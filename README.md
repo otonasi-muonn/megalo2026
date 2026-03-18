@@ -87,6 +87,8 @@ pnpm ccss:assets:sync
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
+`POST /api/ccss/transpile/validate` は管理者JWTが必要です。`apps/backend/.env` の `CCSS_ADMIN_USER_IDS` に管理者ユーザーID（UUID）を設定してください。
+
 #### 1. 正常系（変換 + 同期 + 画面確認）
 
 ```bash
@@ -102,7 +104,7 @@ pnpm --filter frontend dev
 - `examples/output` と `apps/frontend/public/ccss` に生成物3点が揃うこと
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
 - `生成物を読み込む` 後に `style-patch API適用` を押すと、`applied recipes` が表示されること
-- `transpile validate API` セクションで `ソース検証を実行` を押すと `OK` 結果が表示されること
+- `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
 
 #### 2. 異常系（サブセット外入力）
 
