@@ -66,6 +66,9 @@ pnpm dev
 - 入力: `view`, `stateId`, `payload`
 - 出力: `recipeIds`, `classList`, `patchId`, `ttlMs`, `rulesetVersion`
 - セキュリティ: 危険トークン（`@import`, `url(`, `expression(`, `<style`）を検知した入力は `422` で拒否します。
+- レート制限: 既定は 5秒あたり20リクエスト（IP / 認証ユーザー単位）
+- 超過時: `429 CCSS_RATE_LIMITED`（`retryAfterMs` を返却）
+- 環境変数: `CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS`, `CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS`
 
 `POST /api/ccss/transpile/validate`（管理者認証必須）
 

@@ -14,7 +14,7 @@ type AppBindings = {
 }
 
 type AppContext = Context<AppBindings>
-type ErrorStatus = 400 | 401 | 403 | 404 | 422 | 500
+type ErrorStatus = 400 | 401 | 403 | 404 | 422 | 429 | 500
 type StageRecord = Database['public']['Tables']['stages']['Row']
 type StageListItem = Omit<StageRecord, 'stage_data'>
 type CcssStyleRecipe = {
@@ -23,6 +23,10 @@ type CcssStyleRecipe = {
   recipeId: string
   targetClass: string
   addClasses: string[]
+}
+type RateLimitBucket = {
+  count: number
+  resetAt: number
 }
 
 const STAGE_LIST_SELECT =
@@ -107,6 +111,16 @@ const parsePositiveInt = (value: string | undefined, fallback: number): number =
   }
   return parsed
 }
+
+const ccssStylePatchRateLimitMaxRequests = parsePositiveInt(
+  process.env.CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS,
+  20,
+)
+const ccssStylePatchRateLimitWindowMs = parsePositiveInt(
+  process.env.CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS,
+  5000,
+)
+const ccssStylePatchRateLimitBuckets = new Map<string, RateLimitBucket>()
 
 const parseBoolean = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -302,6 +316,58 @@ const requireCcssAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
 }
 
 const getAuthUserId = (c: AppContext): string | null => c.get('authUserId')
+
+const getClientIp = (c: AppContext): string => {
+  const forwarded = c.req.header('X-Forwarded-For')?.trim()
+  if (forwarded && forwarded.length > 0) {
+    const first = forwarded.split(',')[0]?.trim()
+    if (first && first.length > 0) {
+      return first
+    }
+  }
+
+  const realIp = c.req.header('X-Real-IP')?.trim()
+  if (realIp && realIp.length > 0) {
+    return realIp
+  }
+  return 'unknown'
+}
+
+const consumeStylePatchRateLimit = (c: AppContext): { allowed: true } | { allowed: false; retryAfterMs: number } => {
+  const now = Date.now()
+
+  if (ccssStylePatchRateLimitBuckets.size >= 2048) {
+    for (const [key, bucket] of ccssStylePatchRateLimitBuckets.entries()) {
+      if (bucket.resetAt <= now) {
+        ccssStylePatchRateLimitBuckets.delete(key)
+      }
+    }
+  }
+
+  const userId = getAuthUserId(c)
+  const subject = userId ?? getClientIp(c)
+  const key = userId ? `user:${subject}` : `ip:${subject}`
+
+  const existing = ccssStylePatchRateLimitBuckets.get(key)
+  if (!existing || existing.resetAt <= now) {
+    ccssStylePatchRateLimitBuckets.set(key, {
+      count: 1,
+      resetAt: now + ccssStylePatchRateLimitWindowMs,
+    })
+    return { allowed: true }
+  }
+
+  if (existing.count >= ccssStylePatchRateLimitMaxRequests) {
+    return {
+      allowed: false,
+      retryAfterMs: Math.max(1, existing.resetAt - now),
+    }
+  }
+
+  existing.count += 1
+  ccssStylePatchRateLimitBuckets.set(key, existing)
+  return { allowed: true }
+}
 
 const parseStageId = (c: AppContext): string | Response => {
   const stageId = c.req.param('id')
@@ -822,6 +888,21 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
 })
 
 app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
+  const rateLimit = consumeStylePatchRateLimit(c)
+  if (!rateLimit.allowed) {
+    return c.json(
+      {
+        error: {
+          code: 'CCSS_RATE_LIMITED',
+          message: 'style-patch API のリクエストが短時間に集中しています。',
+          hint: `${rateLimit.retryAfterMs}ms 待って再試行してください。`,
+          retryAfterMs: rateLimit.retryAfterMs,
+        },
+      },
+      429,
+    )
+  }
+
   const bodyResult = await readJsonObject(c)
   if (bodyResult instanceof Response) {
     return bodyResult
