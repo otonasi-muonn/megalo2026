@@ -99,6 +99,7 @@ pnpm ccss:checks
 `pnpm ccss:style-patch:contract` で、`style-patch` APIの契約（危険トークン拒否・範囲外拒否・`cssText` 非返却）を自動検証できます。
 `CCSS_STYLE_PATCH_AUDIT_ENABLED=true` を有効化すると、`style-patch` の成功/失敗が `ccss_style_patches` テーブルへ監査保存されます。
 `CCSS_TRANSPILE_AUDIT_ENABLED=true` を有効化すると、`transpile/validate` の成功/失敗が `ccss_transpile_jobs` テーブルへ監査保存されます。
+管理者JWTで `GET /api/ccss/audit/style-patches` / `GET /api/ccss/audit/transpile-jobs` を呼ぶと、監査ログ一覧を参照できます。
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:manifest-check` で、manifestの必須項目/型/重複stateIdに加えて enum の `enumValues` 整合（空配列禁止・重複禁止・初期値包含）を検証できます。
 `pnpm ccss:selector-check` で、manifest.stateId とCSSセレクタ（`data-ccss-state` / `:checked` トグル）の対応を検証できます。

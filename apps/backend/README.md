@@ -83,6 +83,16 @@ pnpm dev
 - `CCSS_ADMIN_USER_IDS` 未設定時は `500 CCSS_ADMIN_CONFIG_MISSING` を返します。
 - 監査ログ（任意）: `CCSS_TRANSPILE_AUDIT_ENABLED=true` で `ccss_transpile_jobs` へ成功/失敗を保存します。
 
+`GET /api/ccss/audit/style-patches`（管理者認証必須）
+
+- 用途: `style-patch` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `view`, `stateId`, `rejectionCode`
+
+`GET /api/ccss/audit/transpile-jobs`（管理者認証必須）
+
+- 用途: `transpile/validate` 監査ログ一覧を取得
+- 主なクエリ: `limit`（1-200）, `status`（`queued/running/succeeded/failed`）, `requestedBy`（UUID）
+
 ## CCSS契約検証コマンド
 
 ```powershell

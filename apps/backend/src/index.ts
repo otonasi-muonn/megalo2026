@@ -18,6 +18,7 @@ type AppContext = Context<AppBindings>
 type ErrorStatus = 400 | 401 | 403 | 404 | 422 | 429 | 500
 type StageRecord = Database['public']['Tables']['stages']['Row']
 type StageListItem = Omit<StageRecord, 'stage_data'>
+type CcssTranspileJobStatus = Database['public']['Tables']['ccss_transpile_jobs']['Row']['status']
 type RateLimitBucket = {
   count: number
   resetAt: number
@@ -32,6 +33,7 @@ const STAGE_LIST_SELECT =
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const CCSS_STATE_ID_PATTERN = /^ccss:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/
+const CCSS_TRANSPILE_JOB_STATUSES: CcssTranspileJobStatus[] = ['queued', 'running', 'succeeded', 'failed']
 const CCSS_RULESET_VERSION = '2026-03-17'
 const CCSS_PATCH_TTL_MS = 3000
 const CCSS_UNSAFE_TOKEN_CHECKS: Array<{ label: string; pattern: RegExp }> = [
@@ -426,6 +428,22 @@ const parseStageId = (c: AppContext): string | Response => {
     return jsonError(c, 400, 'stage id はUUID形式で指定してください。')
   }
   return stageId
+}
+
+const parseQueryLimit = (
+  c: AppContext,
+  rawLimit: string | undefined,
+  fallback = 50,
+): number | Response => {
+  if (rawLimit === undefined) {
+    return fallback
+  }
+
+  const limit = Number(rawLimit)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    return jsonError(c, 400, 'limit は 1 以上 200 以下の整数で指定してください。')
+  }
+  return limit
 }
 
 const ensureStageOwner = async (
@@ -1105,6 +1123,96 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
     classList,
     rulesetVersion: CCSS_RULESET_VERSION,
   })
+})
+
+app.get('/api/ccss/audit/style-patches', requireCcssAdmin, async (c) => {
+  const limit = parseQueryLimit(c, c.req.query('limit'))
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const view = c.req.query('view')?.trim()
+  const stateId = c.req.query('stateId')?.trim()
+  const rejectionCode = c.req.query('rejectionCode')?.trim()
+
+  if (stateId && !CCSS_STATE_ID_PATTERN.test(stateId)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      'stateId は ccss:<page>:<component>:<state> 形式で指定してください。',
+      '例: ccss:sample:sample-panel:menu-open',
+    )
+  }
+
+  let query = supabase
+    .from('ccss_style_patches')
+    .select('id,request_id,view,state_id,applied_recipe_ids,resolved_class_list,ruleset_version,ttl_ms,rejection_code,created_by,created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (view && view.length > 0) {
+    query = query.eq('view', view)
+  }
+  if (stateId && stateId.length > 0) {
+    query = query.eq('state_id', stateId)
+  }
+  if (rejectionCode && rejectionCode.length > 0) {
+    query = query.eq('rejection_code', rejectionCode)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    return dbError(c, error, 'style-patch監査ログの取得に失敗しました')
+  }
+  return c.json({ data: data ?? [] })
+})
+
+app.get('/api/ccss/audit/transpile-jobs', requireCcssAdmin, async (c) => {
+  const limit = parseQueryLimit(c, c.req.query('limit'))
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const rawStatus = c.req.query('status')?.trim()
+  const requestedBy = c.req.query('requestedBy')?.trim()
+
+  if (requestedBy && !isUuid(requestedBy)) {
+    return jsonError(c, 400, 'requestedBy はUUID形式で指定してください。')
+  }
+
+  let status: CcssTranspileJobStatus | undefined
+  if (rawStatus && rawStatus.length > 0) {
+    if (!CCSS_TRANSPILE_JOB_STATUSES.includes(rawStatus as CcssTranspileJobStatus)) {
+      return jsonCodeError(
+        c,
+        400,
+        'CCSS_INVALID_STATUS',
+        'status は queued/running/succeeded/failed のいずれかで指定してください。',
+        '例: succeeded',
+      )
+    }
+    status = rawStatus as CcssTranspileJobStatus
+  }
+
+  let query = supabase
+    .from('ccss_transpile_jobs')
+    .select('id,requested_by,source_path,status,warnings,errors,created_at,finished_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (status) {
+    query = query.eq('status', status)
+  }
+  if (requestedBy && requestedBy.length > 0) {
+    query = query.eq('requested_by', requestedBy)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    return dbError(c, error, 'transpile監査ログの取得に失敗しました')
+  }
+  return c.json({ data: data ?? [] })
 })
 
 app.post('/api/ccss/transpile/validate', requireCcssAdmin, async (c) => {
