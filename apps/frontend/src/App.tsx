@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from './components/AppLink'
+import { CcssAuditPage } from './pages/CcssAuditPage'
+import { CcssPocPage } from './pages/CcssPocPage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { CreatePage } from './pages/CreatePage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -9,12 +11,12 @@ import {
   getRedirectPathFromSearch,
   resolveRedirectPath,
 } from './features/auth/redirect'
+import { signOut } from './features/auth/authActions'
+import { useAuth } from './features/auth/useAuth'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PlayPage } from './pages/PlayPage'
 import { ResultPage } from './pages/ResultPage'
-import { useAuth } from './features/auth/useAuth'
-import { signOut } from './features/auth/authActions'
 import { getCurrentLocation, navigate, subscribeLocation } from './utils/navigation'
 import './App.css'
 
@@ -86,6 +88,17 @@ const isRouteActive = (currentPathname: string, path: string): boolean => {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
+type FrontendUiMode = 'vite' | 'ccss'
+
+const resolveFrontendUiMode = (): FrontendUiMode => {
+  const raw = (import.meta.env.VITE_FRONTEND_UI_MODE as string | undefined)?.trim().toLowerCase()
+  if (raw === 'ccss' || raw === 'vite') {
+    return raw
+  }
+
+  return import.meta.env.MODE === 'ccss' ? 'ccss' : 'vite'
+}
+
 function App() {
   const [locationState, setLocationState] = useState(getCurrentLocation)
   const {
@@ -100,14 +113,17 @@ function App() {
 
   const pathname = normalizePathname(locationState.pathname)
   const resultQuery = useMemo(() => parseResultQuery(locationState.search), [locationState.search])
+  const frontendUiMode = resolveFrontendUiMode()
+  const isCcssMode = frontendUiMode === 'ccss'
   const loginRedirectPath = useMemo(
-    () => getRedirectPathFromSearch(locationState.search),
-    [locationState.search],
+    () => getRedirectPathFromSearch(locationState.search, isCcssMode ? '/' : undefined),
+    [isCcssMode, locationState.search],
   )
 
   const editStageId = getPathParam(pathname, '/edit/')
   const playStageId = getPathParam(pathname, '/play/')
-  const isProtectedRoute = pathname === '/dashboard' || pathname === '/create' || Boolean(editStageId)
+  const isProtectedRoute =
+    !isCcssMode && (pathname === '/dashboard' || pathname === '/create' || Boolean(editStageId))
 
   useEffect(() => {
     if (!isProtectedRoute || isAuthLoading || user) {
@@ -170,7 +186,15 @@ function App() {
     }
 
     if (pathname === '/') {
-      return <HomePage />
+      return isCcssMode ? <CcssPocPage /> : <HomePage />
+    }
+
+    if (pathname === '/ccss-poc') {
+      return <CcssPocPage />
+    }
+
+    if (pathname === '/ccss-audit') {
+      return <CcssAuditPage />
     }
 
     if (pathname === '/login') {
@@ -185,6 +209,25 @@ function App() {
 
     if (pathname === '/auth/callback') {
       return <AuthCallbackPage redirectPath={loginRedirectPath} />
+    }
+
+    if (isCcssMode) {
+      return (
+        <section className="page-card">
+          <h1 className="page-heading">CCSSモードで起動中です</h1>
+          <p className="status-text">
+            このモードでは CCSSランタイム（/）と監査画面（/ccss-audit）を確認できます。
+          </p>
+          <div className="inline-actions">
+            <AppLink to="/" className="button">
+              CCSSランタイムへ
+            </AppLink>
+            <AppLink to="/ccss-audit" className="button secondary">
+              CCSS監査へ
+            </AppLink>
+          </div>
+        </section>
+      )
     }
 
     if (pathname === '/dashboard') {
@@ -244,30 +287,64 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <AppLink className="app-title" to="/">
-          megalo2026
-        </AppLink>
+        <div className="app-brand">
+          <AppLink className="app-title" to="/">
+            megalo2026
+          </AppLink>
+          <span className="app-mode-badge">ui mode: {frontendUiMode}</span>
+        </div>
         <nav className="app-nav" aria-label="主要ナビゲーション">
-          <AppLink
-            to="/"
-            className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
-          >
-            ホーム
-          </AppLink>
-          <AppLink
-            to="/dashboard"
-            className={
-              isRouteActive(pathname, '/dashboard') ? 'nav-link active' : 'nav-link'
-            }
-          >
-            ダッシュボード
-          </AppLink>
-          <AppLink
-            to="/create"
-            className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
-          >
-            ステージ作成
-          </AppLink>
+          {isCcssMode ? (
+            <>
+              <AppLink
+                to="/"
+                className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSSランタイム
+              </AppLink>
+              <AppLink
+                to="/ccss-audit"
+                className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS監査
+              </AppLink>
+            </>
+          ) : (
+            <>
+              <AppLink
+                to="/"
+                className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
+              >
+                ホーム
+              </AppLink>
+              <AppLink
+                to="/dashboard"
+                className={
+                  isRouteActive(pathname, '/dashboard') ? 'nav-link active' : 'nav-link'
+                }
+              >
+                ダッシュボード
+              </AppLink>
+              <AppLink
+                to="/create"
+                className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
+              >
+                ステージ作成
+              </AppLink>
+              <AppLink
+                to="/ccss-poc"
+                className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS PoC
+              </AppLink>
+              <AppLink
+                to="/ccss-audit"
+                className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS監査
+              </AppLink>
+            </>
+          )}
           {!isAuthLoading && (
             user ? (
               <button

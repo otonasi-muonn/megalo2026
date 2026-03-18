@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "pnpm run dev:vite",
+    "dev:vite": "vite",
+    "dev:ccss": "vite --mode ccss",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

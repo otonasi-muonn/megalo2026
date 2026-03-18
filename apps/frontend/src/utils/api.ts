@@ -6,6 +6,7 @@ interface RequestOptions {
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
+  headers?: Record<string, string>
   withAuth?: boolean
 }
 
@@ -35,6 +36,7 @@ const requestJson = async <TResponse>(
 ): Promise<TResponse> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...options.headers,
   }
 
   if (options.withAuth) {
