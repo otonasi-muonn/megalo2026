@@ -4,13 +4,18 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { CreatePage } from './pages/CreatePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EditPage } from './pages/EditPage'
+import {
+  buildLoginPath,
+  getRedirectPathFromSearch,
+  resolveRedirectPath,
+} from './features/auth/redirect'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PlayPage } from './pages/PlayPage'
 import { ResultPage } from './pages/ResultPage'
 import { useAuth } from './features/auth/useAuth'
 import { signOut } from './features/auth/authActions'
-import { getCurrentLocation, subscribeLocation } from './utils/navigation'
+import { getCurrentLocation, navigate, subscribeLocation } from './utils/navigation'
 import './App.css'
 
 const normalizePathname = (pathname: string): string => {
@@ -78,59 +83,136 @@ const isRouteActive = (currentPathname: string, path: string): boolean => {
   return currentPathname === path || currentPathname.startsWith(`${path}/`)
 }
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : '不明なエラーが発生しました。'
+
 function App() {
   const [locationState, setLocationState] = useState(getCurrentLocation)
-  const { user, isLoading: isAuthLoading } = useAuth()
+  const {
+    user,
+    isLoading: isAuthLoading,
+    errorMessage: authErrorMessage,
+  } = useAuth()
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [signOutErrorMessage, setSignOutErrorMessage] = useState<string | null>(null)
 
   useEffect(() => subscribeLocation(() => setLocationState(getCurrentLocation())), [])
 
   const pathname = normalizePathname(locationState.pathname)
   const resultQuery = useMemo(() => parseResultQuery(locationState.search), [locationState.search])
+  const loginRedirectPath = useMemo(
+    () => getRedirectPathFromSearch(locationState.search),
+    [locationState.search],
+  )
 
   const editStageId = getPathParam(pathname, '/edit/')
   const playStageId = getPathParam(pathname, '/play/')
+  const isProtectedRoute = pathname === '/dashboard' || pathname === '/create' || Boolean(editStageId)
+
+  useEffect(() => {
+    if (!isProtectedRoute || isAuthLoading || user) {
+      return
+    }
+
+    const redirectPath = resolveRedirectPath(`${pathname}${locationState.search}`)
+    navigate(buildLoginPath(redirectPath), { replace: true })
+  }, [
+    isProtectedRoute,
+    isAuthLoading,
+    locationState.search,
+    pathname,
+    user,
+  ])
+
+  useEffect(() => {
+    if (pathname !== '/login' || isAuthLoading || !user) {
+      return
+    }
+
+    navigate(loginRedirectPath, { replace: true })
+  }, [isAuthLoading, loginRedirectPath, pathname, user])
 
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true)
+      setSignOutErrorMessage(null)
       await signOut()
+      navigate('/', { replace: true })
+    } catch (error) {
+      setSignOutErrorMessage(`ログアウトに失敗しました。${getErrorMessage(error)}`)
     } finally {
       setIsSigningOut(false)
     }
   }
 
+  const renderAuthChecking = (message: string) => (
+    <section className="page-card">
+      <p className="status-text">{message}</p>
+    </section>
+  )
 
   const content = (() => {
+    if (authErrorMessage) {
+      return (
+        <section className="page-card">
+          <p className="error-text" role="alert">
+            {authErrorMessage}
+          </p>
+          <button
+            type="button"
+            className="button"
+            onClick={() => window.location.reload()}
+          >
+            再読み込み
+          </button>
+        </section>
+      )
+    }
+
     if (pathname === '/') {
       return <HomePage />
     }
 
     if (pathname === '/login') {
-      return <LoginPage />
+      if (isAuthLoading) {
+        return renderAuthChecking('認証状態を確認中です...')
+      }
+      if (user) {
+        return renderAuthChecking('ログイン済みのため移動中です...')
+      }
+      return <LoginPage redirectPath={loginRedirectPath} />
     }
 
     if (pathname === '/auth/callback') {
-      return <AuthCallbackPage />
+      return <AuthCallbackPage redirectPath={loginRedirectPath} />
     }
 
     if (pathname === '/dashboard') {
-      if (!isAuthLoading && !user) {
-        return <LoginPage />
+      if (isAuthLoading) {
+        return renderAuthChecking('認証状態を確認中です...')
+      }
+      if (!user) {
+        return renderAuthChecking('ログイン画面へ移動中です...')
       }
       return <DashboardPage />
     }
 
     if (pathname === '/create') {
-      if (!isAuthLoading && !user) {
-        return <LoginPage />
+      if (isAuthLoading) {
+        return renderAuthChecking('認証状態を確認中です...')
+      }
+      if (!user) {
+        return renderAuthChecking('ログイン画面へ移動中です...')
       }
       return <CreatePage />
     }
 
     if (editStageId) {
-      if (!isAuthLoading && !user) {
-        return <LoginPage />
+      if (isAuthLoading) {
+        return renderAuthChecking('認証状態を確認中です...')
+      }
+      if (!user) {
+        return renderAuthChecking('ログイン画面へ移動中です...')
       }
       return <EditPage stageId={editStageId} />
     }
@@ -207,6 +289,11 @@ function App() {
           )}
         </nav>
       </header>
+      {signOutErrorMessage && (
+        <p className="error-text" role="alert">
+          {signOutErrorMessage}
+        </p>
+      )}
       <main className="app-main">{content}</main>
     </div>
   )

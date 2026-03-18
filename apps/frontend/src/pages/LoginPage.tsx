@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { signInWithGoogle } from '../features/auth/authActions'
+import { DEFAULT_AUTH_REDIRECT_PATH } from '../features/auth/redirect'
 import './LoginPage.css'
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
-export const LoginPage = () => {
+interface LoginPageProps {
+  redirectPath: string
+}
+
+export const LoginPage = ({ redirectPath }: LoginPageProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -13,7 +18,7 @@ export const LoginPage = () => {
     try {
       setIsLoading(true)
       setErrorMessage(null)
-      await signInWithGoogle()
+      await signInWithGoogle(redirectPath)
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
       setIsLoading(false)
@@ -29,6 +34,11 @@ export const LoginPage = () => {
           <br />
           初めての方はログイン時に自動的にアカウントが作成されます。
         </p>
+        {redirectPath !== DEFAULT_AUTH_REDIRECT_PATH && (
+          <p className="status-text">
+            ログイン後、アクセスしようとしていたページへ戻ります。
+          </p>
+        )}
 
         {errorMessage && (
           <p className="error-text" role="alert">
