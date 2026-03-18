@@ -319,11 +319,15 @@ export const useKAPLAY = ({
       }
     }
 
+    const clampToCanvas = (clientX: number, clientY: number, rect: DOMRect) => ({
+      x: Math.max(0, Math.min(rect.width, clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, clientY - rect.top)),
+    })
+
     const onSwipeMove = (clientX: number, clientY: number) => {
       if (swipe === null) return
       const rect = canvas.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
+      const { x, y } = clampToCanvas(clientX, clientY, rect)
       const last = swipe.points[swipe.points.length - 1]
       if (Math.hypot(x - last.x, y - last.y) >= 4) {
         swipe.points.push({ x, y })
@@ -333,7 +337,7 @@ export const useKAPLAY = ({
     const onSwipeEnd = (clientX: number, clientY: number) => {
       if (swipe === null) return
       const rect = canvas.getBoundingClientRect()
-      swipe.points.push({ x: clientX - rect.left, y: clientY - rect.top })
+      swipe.points.push(clampToCanvas(clientX, clientY, rect))
       const points = swipe.points
       const durationMs = performance.now() - swipe.startTime
       swipe = null
@@ -373,9 +377,6 @@ export const useKAPLAY = ({
     const handleMouseDown = (event: MouseEvent) => onSwipeStart(event.clientX, event.clientY)
     const handleMouseMove = (event: MouseEvent) => onSwipeMove(event.clientX, event.clientY)
     const handleMouseUp = (event: MouseEvent) => onSwipeEnd(event.clientX, event.clientY)
-    const handleMouseLeave = () => {
-      swipe = null
-    }
 
     const handleTouchStart = (event: TouchEvent) => {
       const touch = event.touches[0]
@@ -391,18 +392,16 @@ export const useKAPLAY = ({
     }
 
     canvas.addEventListener('mousedown', handleMouseDown)
-    canvas.addEventListener('mousemove', handleMouseMove)
-    canvas.addEventListener('mouseup', handleMouseUp)
-    canvas.addEventListener('mouseleave', handleMouseLeave)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('touchstart', handleTouchStart, { passive: true })
     canvas.addEventListener('touchmove', handleTouchMove, { passive: true })
     canvas.addEventListener('touchend', handleTouchEnd, { passive: true })
 
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown)
-      canvas.removeEventListener('mousemove', handleMouseMove)
-      canvas.removeEventListener('mouseup', handleMouseUp)
-      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
       canvas.removeEventListener('touchstart', handleTouchStart)
       canvas.removeEventListener('touchmove', handleTouchMove)
       canvas.removeEventListener('touchend', handleTouchEnd)
