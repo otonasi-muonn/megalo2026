@@ -58,6 +58,18 @@
   gap: 12px;
 }
 
+.page-card.create-page-card {
+  border: none;
+  padding: 40px 30px;
+  background-image: url('/images/kami_yosage.png');
+  background-size: 100% 100%;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  box-shadow: none;
+  min-height: 1000px;
+}
+
 .page-heading {
   margin: 0;
   font-size: 28px;
@@ -144,6 +156,15 @@
   font-size: 14px;
 }
 
+.create-page-card .text-input {
+  border: 2px solid #5b3a29;
+}
+
+.create-page-card .text-input:focus {
+  outline: none;
+  border-color: #4a2f22;
+}
+
 .inline-actions {
   display: flex;
   gap: 8px;
@@ -156,6 +177,20 @@
   overflow: hidden;
   background: #0f172a;
   position: relative;
+}
+
+.canvas-wrapper .debug-help-text {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #374151;
+  font-size: 12px;
+  border-radius: 4px;
+  z-index: 100;
+  pointer-events: none;
 }
 
 .item-delete-btn {
@@ -238,10 +273,15 @@
 .item-palette {
   display: flex;
   gap: 10px;
-  padding: 10px 12px;
-  background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
+  justify-content: center;
+  padding: 20px 267px 20px 36px;
+  background-image: url('/images/hukuro_hure-mu.png');
+  background-size: contain;
+  background-position: calc(18% - 38px) center;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
   flex-wrap: wrap;
 }
 
@@ -334,6 +374,60 @@
 .button.secondary {
   background: #ffffff;
   color: #1d4ed8;
+}
+
+.create-page-card .test-play-button {
+  display: block !important;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  padding: 18px 28px 16px 28px;
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  border: none !important;
+  outline: none !important;
+  background-image: url('/images/aka.png');
+  background-size: 105% 105%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  color: #ffffff;
+  position: relative;
+  top: 0;
+  left: 0;
+}
+
+.create-page-card .test-play-button:hover:not(:disabled) {
+  filter: brightness(1.12) saturate(1.18) hue-rotate(-8deg);
+}
+
+.create-page-card .test-play-button:active:not(:disabled),
+.create-page-card .test-play-button:focus,
+.create-page-card .test-play-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  position: relative;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+.create-page-card .create-action-button {
+  border: none;
+  padding: 12px 20px;
+  min-width: 170px;
+  background-image: url('/images/isi.png');
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  color: #ffffff;
+}
+
+.create-page-card .create-action-button:hover:not(:disabled) {
+  filter: brightness(1.1) saturate(1.15) hue-rotate(-6deg);
 }
 
 .button:disabled {

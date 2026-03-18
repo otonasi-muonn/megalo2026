@@ -81,48 +81,47 @@ export const HomePage = () => {
               />
             </AppLink>
           </nav>
-        </div>
-      </section>
-
-      <section className="page-card">
-        <h2 className="page-heading">公開ステージ一覧</h2>
-        <p className="status-text">
-          最新の公開ステージをチェック！API: <code>GET /api/stages</code>
-        </p>
-
-        {isLoading && <p className="status-text">読み込み中...</p>}
-
-        {errorMessage && (
-          <p className="error-text" role="alert">
-            読み込み失敗: {errorMessage}
-          </p>
-        )}
-
-        {!isLoading && !errorMessage && (
-          <>
+          <section className="page-card home-stage-card">
+            <h2 className="page-heading">公開ステージ一覧</h2>
             <p className="status-text">
-              取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}
-              ）
+              最新の公開ステージをチェック！API: <code>GET /api/stages</code>
             </p>
-            <ul className="stage-list">
-              {stages.map((stage) => (
-                <li key={stage.id} className="stage-item">
-                  <div>
-                    <strong>{stage.title}</strong>
-                    <p className="meta-text">
-                      play: {stage.play_count} / clear: {stage.clear_count} / like:{' '}
-                      {stage.like_count}
-                    </p>
-                  </div>
-                  <AppLink to={`/play/${stage.id}`} className="button secondary">
-                    プレイ
-                  </AppLink>
-                </li>
-              ))}
-              {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
-            </ul>
-          </>
-        )}
+
+            {isLoading && <p className="status-text">読み込み中...</p>}
+
+            {errorMessage && (
+              <p className="error-text" role="alert">
+                読み込み失敗: {errorMessage}
+              </p>
+            )}
+
+            {!isLoading && !errorMessage && (
+              <>
+                <p className="status-text">
+                  取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}
+                  ）
+                </p>
+                <ul className="stage-list">
+                  {stages.map((stage) => (
+                    <li key={stage.id} className="stage-item">
+                      <div>
+                        <strong>{stage.title}</strong>
+                        <p className="meta-text">
+                          play: {stage.play_count} / clear: {stage.clear_count} / like:{' '}
+                          {stage.like_count}
+                        </p>
+                      </div>
+                      <AppLink to={`/play/${stage.id}`} className="button secondary">
+                        プレイ
+                      </AppLink>
+                    </li>
+                  ))}
+                  {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
+                </ul>
+              </>
+            )}
+          </section>
+        </div>
       </section>
     </>
   )
