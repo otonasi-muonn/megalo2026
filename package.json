@@ -17,6 +17,7 @@
     "ccss:style-patch:contract": "pnpm --filter hono run ccss:style-patch:contract",
     "ccss:recipe-integrity": "pnpm --filter hono run ccss:recipe-integrity",
     "ccss:smoke": "pnpm --filter hono run ccss:smoke",
+    "ccss:checks": "pnpm ccss:compiler:typecheck && pnpm ccss:transpile-build && pnpm ccss:style-patch:contract && pnpm ccss:smoke && pnpm --filter frontend lint && pnpm --filter frontend build && pnpm --filter hono typecheck",
     "ccss:poc:prepare": "pnpm ccss:compiler:sample && pnpm ccss:assets:sync",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

@@ -32,23 +32,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate CCSS subset
-        run: pnpm ccss:compiler:typecheck
-
-      - name: Build transpiled assets
-        run: pnpm ccss:transpile-build
-
-      - name: Check style-patch contract
-        run: pnpm ccss:style-patch:contract
-
-      - name: Smoke test CCSS API
-        run: pnpm ccss:smoke
-
-      - name: Lint frontend
-        run: pnpm --filter frontend lint
-
-      - name: Build frontend
-        run: pnpm --filter frontend build
-
-      - name: Typecheck backend
-        run: pnpm --filter hono typecheck
+      - name: Run CCSS checks
+        run: pnpm ccss:checks
