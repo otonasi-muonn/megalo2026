@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { apiPost } from '../utils/api'
+import { apiGet, apiPost } from '../utils/api'
 import '../styles/CcssPocPage.css'
 
 type ManifestState = {
@@ -33,6 +33,14 @@ type StylePatchResponse = {
     add: string[]
   }>
   rulesetVersion: string
+}
+
+type StylePatchStateCapabilitiesResponse = {
+  data: Array<{
+    view: string
+    stateId: string
+    recipeCount: number
+  }>
 }
 
 type TranspileValidateResponse = {
@@ -80,6 +88,21 @@ const getErrorMessage = (error: unknown): string =>
 
 const escapeSelectorId = (value: string): string => value.replace(/([:\\.[\]#(), ])/g, '\\$1')
 
+const parseHtmlFragment = (html: string): Node[] => {
+  if (html.trim().length === 0) {
+    return []
+  }
+
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(html, 'text/html')
+  const hasScript = parsed.body.querySelector('script')
+  if (hasScript) {
+    throw new Error('生成UIに <script> が含まれています。')
+  }
+
+  return Array.from(parsed.body.childNodes).map((node) => node.cloneNode(true))
+}
+
 const extractHtmlFromGeneratedC = (cSource: string): string => {
   const match = cSource.match(/return\s+"([\s\S]*?)";/)
   if (!match) {
@@ -117,6 +140,8 @@ export const CcssPocPage = () => {
   const [isValidatingSource, setIsValidatingSource] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
+  const [patchableStateIds, setPatchableStateIds] = useState<string[]>([])
+  const [patchableStateStatus, setPatchableStateStatus] = useState<string | null>(null)
   const [stateEventStatus, setStateEventStatus] = useState<string | null>(null)
   const [selectedStateId, setSelectedStateId] = useState('')
   const [sourceInput, setSourceInput] = useState(DEFAULT_VALIDATE_SOURCE)
@@ -130,18 +155,29 @@ export const CcssPocPage = () => {
     }
     return manifest.states.find((state) => state.stateId === selectedStateId) ?? manifest.states[0]
   }, [manifest, selectedStateId])
+  const patchableStateIdSet = useMemo(() => new Set(patchableStateIds), [patchableStateIds])
+  const isSelectedStatePatchable = selectedState
+    ? patchableStateIdSet.has(selectedState.stateId)
+    : false
 
   const loadGeneratedAssets = useCallback(async () => {
     try {
       setIsLoading(true)
       setErrorMessage(null)
       setAppliedRecipes([])
+      setPatchableStateIds([])
+      setPatchableStateStatus(null)
       setStateEventStatus(null)
 
-      const [manifestResponse, cssResponse, cResponse] = await Promise.all([
+      const [manifestResponse, cssResponse, cResponse, patchStateResponse] = await Promise.all([
         fetch('/ccss/ccss.manifest.json', { cache: 'no-store' }),
         fetch('/ccss/ui.generated.css', { cache: 'no-store' }),
         fetch('/ccss/ui.generated.c', { cache: 'no-store' }),
+        apiGet<StylePatchStateCapabilitiesResponse>('/api/ccss/style-patch/states', {
+          query: {
+            view: 'sample',
+          },
+        }).catch(() => null),
       ])
 
       if (!manifestResponse.ok || !cssResponse.ok || !cResponse.ok) {
@@ -159,9 +195,22 @@ export const CcssPocPage = () => {
       const nextCss = await cssResponse.text()
       const cSource = await cResponse.text()
       const nextHtml = extractHtmlFromGeneratedC(cSource)
+      const nextPatchableStateIds = patchStateResponse
+        ? Array.from(new Set(patchStateResponse.data.map((record) => record.stateId)))
+        : []
+      const patchableStateSet = new Set(nextPatchableStateIds)
+      const initialStateId = nextManifest.states.find((state) => patchableStateSet.has(state.stateId))?.stateId
+        ?? nextManifest.states[0]?.stateId
+        ?? ''
 
       setManifest(nextManifest)
-      setSelectedStateId(nextManifest.states[0]?.stateId ?? '')
+      setSelectedStateId(initialStateId)
+      setPatchableStateIds(nextPatchableStateIds)
+      setPatchableStateStatus(
+        patchStateResponse
+          ? `style-patch対象state: ${nextPatchableStateIds.length}件`
+          : 'style-patch対象stateの取得に失敗しました。',
+      )
       setGeneratedCss(nextCss)
       setGeneratedHtml(nextHtml)
     } catch (error) {
@@ -226,6 +275,10 @@ export const CcssPocPage = () => {
     if (!root || !stateId) {
       return
     }
+    if (!isSelectedStatePatchable) {
+      setErrorMessage('選択中のstateは style-patch 対象外です。対象stateを選択してください。')
+      return
+    }
 
     try {
       setIsApplyingPatch(true)
@@ -264,7 +317,7 @@ export const CcssPocPage = () => {
     } finally {
       setIsApplyingPatch(false)
     }
-  }, [recordStateEvent, selectedState])
+  }, [isSelectedStatePatchable, recordStateEvent, selectedState])
 
   const validateSourceWithApi = useCallback(async () => {
     try {
@@ -299,7 +352,13 @@ export const CcssPocPage = () => {
     if (!root) {
       return
     }
-    root.innerHTML = generatedHtml
+    try {
+      const nodes = parseHtmlFragment(generatedHtml)
+      root.replaceChildren(...nodes)
+    } catch (error) {
+      root.replaceChildren()
+      setErrorMessage(getErrorMessage(error))
+    }
   }, [generatedHtml])
 
   useEffect(() => {
@@ -387,6 +446,7 @@ export const CcssPocPage = () => {
                   {state.kind === 'enum' && state.enumValues && state.enumValues.length > 0
                     ? ` (${state.enumValues.join('|')})`
                     : ''}
+                  {!patchableStateIdSet.has(state.stateId) ? ' [patch対象外]' : ''}
                 </option>
               ))}
             </select>
@@ -402,7 +462,7 @@ export const CcssPocPage = () => {
           type="button"
           className="button secondary"
           onClick={applyPatchFromApi}
-          disabled={!manifest || !selectedState || isApplyingPatch}
+          disabled={!manifest || !selectedState || isApplyingPatch || !isSelectedStatePatchable}
         >
           {isApplyingPatch ? '適用中...' : 'style-patch API適用'}
         </button>
@@ -429,6 +489,9 @@ export const CcssPocPage = () => {
           <p className="status-text">
             selected: {selectedState?.stateId ?? '-'}
           </p>
+          {patchableStateStatus && (
+            <p className="status-text">{patchableStateStatus}</p>
+          )}
           {appliedRecipes.length > 0 && (
             <p className="success-text">applied recipes: {appliedRecipes.join(', ')}</p>
           )}

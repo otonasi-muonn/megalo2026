@@ -25,6 +25,7 @@ $env:SUPABASE_JWT_AUDIENCE="authenticated"
 - `CCSS_STYLE_PATCH_AUDIT_ENABLED`: `true` のとき `style-patch` 監査ログを `ccss_style_patches` に保存（既定 `false`）
 - `CCSS_TRANSPILE_AUDIT_ENABLED`: `true` のとき `transpile/validate` 実行ログを `ccss_transpile_jobs` に保存（既定 `false`）
 - `CCSS_STATE_EVENT_AUDIT_ENABLED`: `true` のとき `state-events` ログを `ccss_state_events` に保存（既定 `false`）
+- `CCSS_TRUST_PROXY_HEADERS`: `true` のとき `X-Forwarded-For` / `X-Real-IP` をレート制限キー解決に利用（既定 `false`）
 
 ## ローカル起動手順
 
@@ -69,10 +70,16 @@ pnpm dev
 - 入力: `view`, `stateId`, `payload`
 - 出力: `recipeIds`, `classList`, `patchId`, `ttlMs`, `rulesetVersion`
 - セキュリティ: 危険トークン（`@import`, `url(`, `expression(`, `<style`）を検知した入力は `422` で拒否します。
-- レート制限: 既定は 5秒あたり20リクエスト（IP / 認証ユーザー単位）
+- レート制限: 既定は 5秒あたり20リクエスト（認証ユーザー単位 + 匿名は共有キー）
 - 超過時: `429 CCSS_RATE_LIMITED`（`retryAfterMs` を返却）
-- 環境変数: `CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS`, `CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS`
+- 環境変数: `CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS`, `CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS`, `CCSS_TRUST_PROXY_HEADERS`
+- `CCSS_TRUST_PROXY_HEADERS=true` の場合のみ、`X-Forwarded-For` / `X-Real-IP` の妥当なIP値を匿名キーに利用します。
 - 監査ログ（任意）: `CCSS_STYLE_PATCH_AUDIT_ENABLED=true` で `ccss_style_patches` へ成功/失敗を保存します。
+
+`GET /api/ccss/style-patch/states`（認証任意）
+
+- 用途: `style-patch` で適用可能な `stateId` 一覧を取得
+- 主なクエリ: `view`（任意）
 
 `POST /api/ccss/transpile/validate`（管理者認証必須）
 

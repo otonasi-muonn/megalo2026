@@ -126,7 +126,7 @@ workflow完了時には `apps/frontend/public/ccss` の生成物が `ccss-genera
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
 `POST /api/ccss/transpile/validate` は管理者JWTが必要です。`apps/backend/.env` の `CCSS_ADMIN_USER_IDS` に管理者ユーザーID（UUID）を設定してください。
-`POST /api/ccss/style-patch` は短時間レート制限があります（既定: 5秒あたり20リクエスト、`CCSS_STYLE_PATCH_RATE_LIMIT_*` で変更可）。
+`POST /api/ccss/style-patch` は短時間レート制限があります（既定: 5秒あたり20リクエスト、`CCSS_STYLE_PATCH_RATE_LIMIT_*` で変更可）。匿名キーに `X-Forwarded-For` / `X-Real-IP` を使う場合は `CCSS_TRUST_PROXY_HEADERS=true` を設定してください。
 
 #### 1. 正常系（変換 + 同期 + 画面確認）
 

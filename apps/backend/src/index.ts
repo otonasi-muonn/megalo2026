@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isIP } from 'node:net'
 import { parseComponentSource } from '@ccss/compiler'
 import { createClient, type PostgrestError } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
@@ -126,6 +127,7 @@ const parseBoolean = (value: string | undefined): boolean | undefined => {
 const ccssStylePatchAuditEnabled = parseBoolean(process.env.CCSS_STYLE_PATCH_AUDIT_ENABLED) ?? false
 const ccssTranspileAuditEnabled = parseBoolean(process.env.CCSS_TRANSPILE_AUDIT_ENABLED) ?? false
 const ccssStateEventAuditEnabled = parseBoolean(process.env.CCSS_STATE_EVENT_AUDIT_ENABLED) ?? false
+const ccssTrustProxyHeaders = parseBoolean(process.env.CCSS_TRUST_PROXY_HEADERS) ?? false
 
 const readJsonObject = async (c: AppContext): Promise<Record<string, unknown> | Response> => {
   try {
@@ -309,20 +311,36 @@ const requireCcssAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
 
 const getAuthUserId = (c: AppContext): string | null => c.get('authUserId')
 
+const toValidatedIp = (value: string | undefined): string | null => {
+  if (!value) {
+    return null
+  }
+  const normalized = value.trim()
+  if (normalized.length === 0) {
+    return null
+  }
+  return isIP(normalized) > 0 ? normalized : null
+}
+
 const getClientIp = (c: AppContext): string => {
+  if (!ccssTrustProxyHeaders) {
+    return 'anonymous'
+  }
+
   const forwarded = c.req.header('X-Forwarded-For')?.trim()
   if (forwarded && forwarded.length > 0) {
-    const first = forwarded.split(',')[0]?.trim()
-    if (first && first.length > 0) {
-      return first
+    const first = forwarded.split(',')[0]
+    const validatedForwardedIp = toValidatedIp(first)
+    if (validatedForwardedIp) {
+      return validatedForwardedIp
     }
   }
 
-  const realIp = c.req.header('X-Real-IP')?.trim()
-  if (realIp && realIp.length > 0) {
-    return realIp
+  const validatedRealIp = toValidatedIp(c.req.header('X-Real-IP'))
+  if (validatedRealIp) {
+    return validatedRealIp
   }
-  return 'unknown'
+  return 'anonymous'
 }
 
 const consumeStylePatchRateLimit = (c: AppContext): { allowed: true } | { allowed: false; retryAfterMs: number } => {
@@ -337,8 +355,7 @@ const consumeStylePatchRateLimit = (c: AppContext): { allowed: true } | { allowe
   }
 
   const userId = getAuthUserId(c)
-  const subject = userId ?? getClientIp(c)
-  const key = userId ? `user:${subject}` : `ip:${subject}`
+  const key = userId ? `user:${userId}` : `anon:${getClientIp(c)}`
 
   const existing = ccssStylePatchRateLimitBuckets.get(key)
   if (!existing || existing.resetAt <= now) {
@@ -959,6 +976,37 @@ app.post('/api/stages/:id/likes', requireAuth, async (c) => {
       updated_at: updatedStage.updated_at,
     },
   })
+})
+
+app.get('/api/ccss/style-patch/states', optionalAuth, (c) => {
+  const viewFilter = c.req.query('view')?.trim()
+
+  const capabilitiesByKey = new Map<string, { view: string; stateId: string; recipeCount: number }>()
+  for (const recipe of CCSS_RECIPE_REGISTRY) {
+    if (viewFilter && viewFilter.length > 0 && recipe.view !== viewFilter) {
+      continue
+    }
+
+    const key = `${recipe.view}:${recipe.stateId}`
+    const existing = capabilitiesByKey.get(key)
+    if (existing) {
+      existing.recipeCount += 1
+      continue
+    }
+
+    capabilitiesByKey.set(key, {
+      view: recipe.view,
+      stateId: recipe.stateId,
+      recipeCount: 1,
+    })
+  }
+
+  const data = Array.from(capabilitiesByKey.values()).sort((a, b) => {
+    const viewOrder = a.view.localeCompare(b.view)
+    return viewOrder !== 0 ? viewOrder : a.stateId.localeCompare(b.stateId)
+  })
+
+  return c.json({ data })
 })
 
 app.post('/api/ccss/style-patch', optionalAuth, async (c) => {

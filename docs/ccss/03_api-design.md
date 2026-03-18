@@ -18,6 +18,7 @@
 | DELETE | `/api/stages/:id` | ステージ削除 | 必須（作者一致） |
 | POST | `/api/stages/:id/play_logs` | プレイログ記録 | 任意 |
 | POST | `/api/stages/:id/likes` | いいねトグル | 必須 |
+| GET | `/api/ccss/style-patch/states` | `style-patch` で適用可能な state 一覧取得 | 任意 |
 | POST | `/api/ccss/style-patch` | UI状態に応じた安全レシピ差分返却 | 任意（状態で分岐） |
 | POST | `/api/ccss/transpile/validate` | React入力がCCSSサブセット適合か検証 | 必須（管理者） |
 
@@ -108,7 +109,7 @@
 - `style-patch` はサーバー定義済み `recipeIds` + `classList` のみ返却（任意CSS注入を禁止）
 - Hono層で入力値をCSSプロパティ値へ直接連結しない（構造的無害化）
 - 危険トークン検出時は `CCSS_UNSAFE_INPUT_REJECTED` を返して処理中断
-- レート制限: `style-patch` はIP + session単位で短時間制限
+- レート制限: `style-patch` は認証ユーザー単位 + 匿名共有キーで短時間制限（`CCSS_TRUST_PROXY_HEADERS=true` 時のみ信頼プロキシ経由のIPヘッダーを利用）
 - JWT検証失敗時は即401、黙殺しない
 
 ## 7. 監査ログ
