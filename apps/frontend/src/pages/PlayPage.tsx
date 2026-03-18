@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppLink } from '../components/AppLink'
 import { useKAPLAY } from '../features/game/useKAPLAY'
 import type {
   LikeToggleResponse,
@@ -30,6 +29,25 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
   const [likeMessage, setLikeMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const finishingRef = useRef(false)
+  const isMountedRef = useRef(false)
+  const finishAbortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      finishAbortControllerRef.current?.abort()
+      finishAbortControllerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    finishingRef.current = false
+    setIsFinishingPlay(false)
+    finishAbortControllerRef.current?.abort()
+    finishAbortControllerRef.current = null
+  }, [stageId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -84,6 +102,10 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
       return
     }
 
+    const finishController = new AbortController()
+    finishAbortControllerRef.current?.abort()
+    finishAbortControllerRef.current = finishController
+
     finishingRef.current = true
     setIsFinishingPlay(true)
     setErrorMessage(null)
@@ -92,7 +114,12 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
       const response = await apiPost<PlayLogResponse>(
         `/api/stages/${stageId}/play_logs`,
         { is_cleared: cleared },
+        { signal: finishController.signal },
       )
+
+      if (finishController.signal.aborted || !isMountedRef.current) {
+        return
+      }
 
       navigate(
         buildResultPath({
@@ -105,6 +132,14 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
         }),
       )
     } catch (error) {
+      if (
+        finishController.signal.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError') ||
+        !isMountedRef.current
+      ) {
+        return
+      }
+
       navigate(
         buildResultPath({
           stageId,
@@ -113,6 +148,14 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
           logError: getErrorMessage(error),
         }),
       )
+    } finally {
+      if (finishAbortControllerRef.current === finishController) {
+        finishAbortControllerRef.current = null
+      }
+      if (isMountedRef.current) {
+        finishingRef.current = false
+        setIsFinishingPlay(false)
+      }
     }
   }, [stageId])
 
@@ -181,12 +224,22 @@ export const PlayPage = ({ stageId }: PlayPageProps) => {
           </div>
 
           <div className="inline-actions">
-            <AppLink to={`/edit/${stageId}`} className="button secondary">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate(`/edit/${stageId}`)}
+              disabled={isFinishingPlay}
+            >
               編集へ
-            </AppLink>
-            <AppLink to="/" className="button secondary">
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate('/')}
+              disabled={isFinishingPlay}
+            >
               ホームへ
-            </AppLink>
+            </button>
           </div>
         </>
       )}
