@@ -100,7 +100,7 @@ pnpm ccss:checks
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
 `pnpm ccss:manifest-check` で、manifestの必須項目/型/重複stateIdを検証できます。
 `pnpm ccss:selector-check` で、manifest.stateId とCSSセレクタ（`data-ccss-state` / `:checked` トグル）の対応を検証できます。
-`pnpm ccss:html-state-check` で、manifest.stateId と生成HTML（`ui.generated.c`）の `id` 対応を検証できます。
+`pnpm ccss:html-state-check` で、manifest.stateId（boolean / enum）と生成HTML（`ui.generated.c`）の `id` 対応を検証できます。
 `pnpm ccss:c-safety` で、生成Cコードの危険API/不正断片（`malloc`, `strcpy`, `system(`, `<script`）を検出できます。
 `pnpm ccss:css-safety` で、生成CSSの危険トークン/危険セレクタ（`@import`, `url(`, `expression(`, `* {`）を検出できます。
 `pnpm ccss:dom-isolation` で、生成UIへの `<canvas>` / `#ccss-game-root` 混入を検出できます。

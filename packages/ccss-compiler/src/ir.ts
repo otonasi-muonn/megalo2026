@@ -1,5 +1,12 @@
 import path from 'node:path'
-import type { CompilerIR, JsxChildNode, JsxNode, ParsedComponent } from './types.js'
+import type {
+  CompilerIR,
+  CompilerState,
+  JsxAttribute,
+  JsxChildNode,
+  JsxNode,
+  ParsedComponent,
+} from './types.js'
 
 const escapeHtml = (value: string): string => (
   value
@@ -44,6 +51,61 @@ const serializeNode = (node: JsxNode): string => {
   return `${openTag}${children}</${node.tag}>`
 }
 
+const collectStateInputIds = (node: JsxNode, result: Set<string>): void => {
+  if (node.tag === 'input') {
+    const idAttr = node.attributes.find((attribute) => attribute.name === 'id')
+    if (typeof idAttr?.value === 'string' && idAttr.value.startsWith('ccss:')) {
+      result.add(idAttr.value)
+    }
+  }
+
+  for (const child of node.children) {
+    if (typeof child === 'string') {
+      continue
+    }
+    collectStateInputIds(child, result)
+  }
+}
+
+const createStateInputNode = (state: CompilerState): JsxNode => {
+  const attributes: JsxAttribute[] = [
+    { name: 'id', value: state.stateId },
+    { name: 'className', value: 'ccss-state-input' },
+    { name: 'type', value: 'checkbox' },
+  ]
+
+  if (state.kind === 'boolean' && state.initialValue === true) {
+    attributes.push({ name: 'checked', value: null })
+  }
+
+  return {
+    tag: 'input',
+    attributes,
+    children: [],
+  }
+}
+
+const injectMissingStateInputs = (
+  jsxRoot: JsxNode,
+  states: CompilerState[],
+): JsxNode => {
+  const existingStateInputIds = new Set<string>()
+  collectStateInputIds(jsxRoot, existingStateInputIds)
+
+  const missingStateInputs = states
+    .filter((state) => !existingStateInputIds.has(state.stateId))
+    .map(createStateInputNode)
+
+  if (missingStateInputs.length === 0) {
+    return jsxRoot
+  }
+
+  return {
+    ...jsxRoot,
+    children: [...missingStateInputs, ...jsxRoot.children],
+  }
+}
+
 export const normalizeToCompilerIR = (
   component: ParsedComponent,
   sourcePath: string,
@@ -58,6 +120,7 @@ export const normalizeToCompilerIR = (
     initialValue: state.initialValue,
     stateId: `ccss:${pageSlug}:${componentSlug}:${toKebab(state.name) || 'state'}`,
   }))
+  const jsxRootWithStateInputs = injectMissingStateInputs(component.jsxRoot, states)
 
   return {
     componentName: component.name,
@@ -69,6 +132,6 @@ export const normalizeToCompilerIR = (
       gameRootId: 'ccss-game-root',
     },
     states,
-    html: serializeNode(component.jsxRoot),
+    html: serializeNode(jsxRootWithStateInputs),
   }
 }

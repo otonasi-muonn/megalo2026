@@ -80,12 +80,9 @@ const main = async () => {
     const htmlStateIds = collectHtmlStateIds(html)
 
     for (const state of states) {
-      if (state.kind !== 'boolean') {
-        continue
-      }
       const stateInput = `id="${state.stateId}"`
       if (!html.includes(stateInput)) {
-        errors.push(`${target.name}: boolean stateId に対応する input id が不足 (${state.stateId})`)
+        errors.push(`${target.name}: stateId に対応する input id が不足 (${state.stateId})`)
       }
     }
 
