@@ -306,26 +306,17 @@ export const applySpringBounce = (char: CharState, stageData: StageData): void =
       continue // 離れていく場合はスキップ
     }
 
-    // プレイヤーをバネ表面に配置
-    const pushDistance = char.radius + 1
+    // プレイヤーをバネ表面（法線方向の外側）に押し出す
+    const pushDistance = rh / 2 + char.radius + 1
     char.x = springCenterX + normalX * pushDistance
     char.y = springCenterY + normalY * pushDistance
 
-    // 入ってきた速度の大きさを保持（物理的な反射）
-    const incomingVelMagnitude = Math.sqrt(char.vx * char.vx + char.vy * char.vy)
-    
-    // 接線方向（バネに平行）の速度成分を保持
-    const tangentX = -normalY
-    const tangentY = normalX
-    const tangentVelComponent = char.vx * tangentX + char.vy * tangentY
-
-    // 法線方向に反射＋バネ力を加える
+    // 法線方向の入射速度を基準に、安定した反射速度を与える
+    const incomingNormalSpeed = Math.abs(normalVelComponent)
     const minBounce = Math.max(60, gimmick.power * 0.22)
-    const bounceVelComponent = Math.max(minBounce, incomingVelMagnitude * 1.1)
-
-    // 新しい速度 = 法線成分 + 接線成分（接線をより保持）
-    char.vx = normalX * bounceVelComponent + tangentX * (tangentVelComponent * 0.95)
-    char.vy = normalY * bounceVelComponent + tangentY * (tangentVelComponent * 0.95)
+    const bounceVelComponent = Math.max(minBounce, incomingNormalSpeed * 1.15)
+    char.vx = normalX * bounceVelComponent
+    char.vy = normalY * bounceVelComponent
   }
 }
 

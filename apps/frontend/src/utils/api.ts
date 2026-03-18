@@ -13,9 +13,37 @@ interface RequestOptions {
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8787'
 
-const buildUrl = (path: string, query?: Record<string, QueryValue>): string => {
+const buildApiBaseCandidates = (primaryBaseUrl: string): string[] => {
+  const candidates = [primaryBaseUrl]
+
+  try {
+    const parsed = new URL(primaryBaseUrl)
+    const alternateHost =
+      parsed.hostname === '127.0.0.1'
+        ? 'localhost'
+        : parsed.hostname === 'localhost'
+          ? '127.0.0.1'
+          : null
+    if (alternateHost) {
+      parsed.hostname = alternateHost
+      candidates.push(parsed.toString())
+    }
+  } catch {
+    // URLが不正な場合は primary のみで処理する
+  }
+
+  return Array.from(new Set(candidates))
+}
+
+const API_BASE_URL_CANDIDATES = buildApiBaseCandidates(API_BASE_URL)
+
+const buildUrl = (
+  apiBaseUrl: string,
+  path: string,
+  query?: Record<string, QueryValue>,
+): string => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  const url = new URL(normalizedPath, API_BASE_URL)
+  const url = new URL(normalizedPath, apiBaseUrl)
 
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -27,6 +55,18 @@ const buildUrl = (path: string, query?: Record<string, QueryValue>): string => {
   }
 
   return url.toString()
+}
+
+const isNetworkFetchError = (error: unknown): boolean => {
+  if (error instanceof TypeError) {
+    return true
+  }
+
+  if (error instanceof Error) {
+    return /Failed to fetch|NetworkError/i.test(error.message)
+  }
+
+  return false
 }
 
 const requestJson = async <TResponse>(
@@ -46,21 +86,43 @@ const requestJson = async <TResponse>(
     }
   }
 
-  const response = await fetch(buildUrl(path, options.query), {
-    method,
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    signal: options.signal,
-  })
+  let lastNetworkError: unknown = null
 
-  if (!response.ok) {
-    const bodyText = await response.text()
-    throw new Error(
-      `API request failed: ${method} ${path} (${response.status}) ${bodyText}`,
-    )
+  for (const apiBaseUrl of API_BASE_URL_CANDIDATES) {
+    const requestUrl = buildUrl(apiBaseUrl, path, options.query)
+
+    try {
+      const response = await fetch(requestUrl, {
+        method,
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: options.signal,
+      })
+
+      if (!response.ok) {
+        const bodyText = await response.text()
+        throw new Error(
+          `API request failed: ${method} ${path} (${response.status}) ${bodyText}`,
+        )
+      }
+
+      return (await response.json()) as TResponse
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error
+      }
+      if (!isNetworkFetchError(error)) {
+        throw error
+      }
+      lastNetworkError = error
+    }
   }
 
-  return (await response.json()) as TResponse
+  const detail =
+    lastNetworkError instanceof Error ? lastNetworkError.message : 'unknown network error'
+  throw new Error(
+    `APIサーバーへ接続できませんでした。バックエンド起動状態とURLを確認してください。（試行: ${API_BASE_URL_CANDIDATES.join(', ')} / 詳細: ${detail}）`,
+  )
 }
 
 export const apiGet = <TResponse>(

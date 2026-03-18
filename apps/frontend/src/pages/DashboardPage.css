@@ -36,6 +36,10 @@
   gap: 16px;
 }
 
+.dashboard-page .dashboard-page-nav {
+  margin: 4px 0 2px;
+}
+
 .dashboard-page .dashboard-toolbar-left {
   display: grid;
   gap: 6px;

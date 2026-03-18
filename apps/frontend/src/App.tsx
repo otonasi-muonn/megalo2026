@@ -117,6 +117,30 @@ const parseResultQuery = (search: string): ResultQuery => {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
+const getFallbackDisplayName = (
+  user: { email?: string | null; user_metadata?: Record<string, unknown> } | null,
+): string => {
+  if (!user) {
+    return 'プレイヤー'
+  }
+
+  const userMetadata = user.user_metadata ?? {}
+  const candidateKeys = ['display_name', 'name', 'full_name', 'user_name']
+  for (const key of candidateKeys) {
+    const value = userMetadata[key]
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim()
+    }
+  }
+
+  const emailLocalPart = user.email?.split('@')[0]?.trim()
+  if (emailLocalPart && emailLocalPart.length > 0) {
+    return emailLocalPart
+  }
+
+  return 'プレイヤー'
+}
+
 function App() {
   const [locationState, setLocationState] = useState(getCurrentLocation)
   const {
@@ -241,7 +265,12 @@ function App() {
       if (!user) {
         return renderAuthChecking('ログイン画面へ移動中です...')
       }
-      return <DashboardPage />
+      return (
+        <DashboardPage
+          currentUserId={user.id}
+          fallbackDisplayName={getFallbackDisplayName(user)}
+        />
+      )
     }
 
     if (pathname === '/create') {

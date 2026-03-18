@@ -35,8 +35,13 @@ const getErrorMessage = (error: unknown): string =>
 type StageSortKey = 'favorite' | 'created' | 'name'
 type SortOrder = 'desc' | 'asc'
 
-export const DashboardPage = () => {
-  const [displayName, setDisplayName] = useState('未取得')
+type DashboardPageProps = {
+  currentUserId: string
+  fallbackDisplayName: string
+}
+
+export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardPageProps) => {
+  const [displayName, setDisplayName] = useState(fallbackDisplayName)
   const [stages, setStages] = useState<DashboardStage[]>([])
   const [pagination, setPagination] = useState<Pagination>(initialPagination)
   const [sortKey, setSortKey] = useState<StageSortKey>('created')
@@ -120,35 +125,48 @@ export const DashboardPage = () => {
     setStages((prevStages) => {
       return prevStages.map((stage) =>
         stage.id === stageId ? { ...stage, title: newName } : stage
-      );
-    });
+      )
+    })
   }
 
   const handleUploadImage = (stageId: string, imageUrl: string) => {
     setStages((prevStages) => {
       return prevStages.map((stage) =>
         stage.id === stageId ? { ...stage, imageUrl } : stage
-      );
-    });
+      )
+    })
   }
+
+  useEffect(() => {
+    setDisplayName(fallbackDisplayName)
+  }, [fallbackDisplayName])
 
   useEffect(() => {
     const controller = new AbortController()
 
     const loadDashboard = async () => {
+      if (!currentUserId) {
+        setErrorMessage('ユーザー情報を取得できなかったため、ダッシュボードを表示できません。')
+        setStages([])
+        setPagination(initialPagination)
+        setIsLoading(false)
+        return
+      }
+
       try {
         setIsLoading(true)
         setErrorMessage(null)
 
-        const profileResponse = await apiGet<ProfileResponse>('/api/profiles/me', {
+        const profileNamePromise = apiGet<ProfileResponse>('/api/profiles/me', {
           signal: controller.signal,
           withAuth: true,
         })
-        setDisplayName(profileResponse.data.display_name)
+          .then((profileResponse) => profileResponse.data.display_name)
+          .catch(() => null)
 
         const stageResponse = await apiGet<StageListResponse>('/api/stages', {
           query: {
-            author_id: profileResponse.data.id,
+            author_id: currentUserId,
             page: 1,
             limit: 10,
           },
@@ -158,6 +176,10 @@ export const DashboardPage = () => {
 
         setStages(stageResponse.data)
         setPagination(stageResponse.pagination)
+        const profileName = await profileNamePromise
+        if (typeof profileName === 'string' && profileName.trim().length > 0) {
+          setDisplayName(profileName.trim())
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return
@@ -173,7 +195,7 @@ export const DashboardPage = () => {
     void loadDashboard()
 
     return () => controller.abort()
-  }, [])
+  }, [currentUserId])
 
   return (
     <section className="page-card dashboard-page">
@@ -181,6 +203,14 @@ export const DashboardPage = () => {
       <p className="status-text">
         {displayName} さんのステージ一覧です。
       </p>
+      <div className="inline-actions dashboard-page-nav">
+        <AppLink to="/" className="button secondary">
+          ホームへ戻る
+        </AppLink>
+        <AppLink to="/create" className="button secondary">
+          ステージ作成へ
+        </AppLink>
+      </div>
 
       {isLoading && <p className="status-text">読み込み中...</p>}
       {errorMessage && (
