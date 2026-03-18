@@ -32,6 +32,7 @@ const main = async () => {
   run('pnpm ccss:assets:sync')
   run('pnpm ccss:manifest-check')
   run('pnpm ccss:selector-check')
+  run('pnpm ccss:html-state-check')
   run('pnpm ccss:recipe-integrity')
   run('pnpm ccss:dom-isolation')
   run('pnpm ccss:c-safety')

@@ -13,6 +13,7 @@
     "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
     "ccss:manifest-check": "node scripts/ccss-manifest-check.mjs",
     "ccss:selector-check": "node scripts/ccss-selector-check.mjs",
+    "ccss:html-state-check": "node scripts/ccss-html-state-check.mjs",
     "ccss:c-safety": "node scripts/ccss-c-safety-check.mjs",
     "ccss:css-safety": "node scripts/ccss-css-safety-check.mjs",
     "ccss:dom-isolation": "node scripts/ccss-dom-isolation-check.mjs",
