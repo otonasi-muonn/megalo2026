@@ -100,6 +100,7 @@ function App() {
     }
   }
 
+
   const content = (() => {
     if (pathname === '/') {
       return <HomePage />
