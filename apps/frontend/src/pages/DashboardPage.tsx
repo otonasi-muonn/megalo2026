@@ -14,6 +14,11 @@ import type {
 import { apiGet } from '../utils/api'
 import './DashboardPage.css'
 
+type DashboardStage = StageListItemDto & {
+  imageUrl?: string
+  isMock?: boolean
+}
+
 const initialPagination: Pagination = {
   page: 1,
   limit: 10,
@@ -23,10 +28,6 @@ const initialPagination: Pagination = {
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
-
-type DashboardStage = StageListItemDto & {
-  imageUrl?: string
-}
 
 const mockStages: DashboardStage[] = [
   {
@@ -39,6 +40,7 @@ const mockStages: DashboardStage[] = [
     like_count: 8,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '2',
@@ -50,6 +52,7 @@ const mockStages: DashboardStage[] = [
     like_count: 2,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '3',
@@ -61,6 +64,7 @@ const mockStages: DashboardStage[] = [
     like_count: 15,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '4',
@@ -72,6 +76,7 @@ const mockStages: DashboardStage[] = [
     like_count: 5,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
 ]
 
@@ -164,6 +169,7 @@ export const DashboardPage = () => {
 
         const profileResponse = await apiGet<ProfileResponse>('/api/profiles/me', {
           signal: controller.signal,
+          withAuth: true,
         })
         setDisplayName(profileResponse.data.display_name)
 
@@ -174,9 +180,10 @@ export const DashboardPage = () => {
             limit: 10,
           },
           signal: controller.signal,
+          withAuth: true,
         })
 
-        setStages(stageResponse.data)
+        setStages(stageResponse.data.map((stage) => ({ ...stage, isMock: false })))
         setPagination(stageResponse.pagination)
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -277,13 +284,16 @@ export const DashboardPage = () => {
           {sortedStages.length === 0 && <p className="status-text">作成したステージはまだありません。</p>}
           <ul className="stage-list">
             {sortedStages.map((stage) => (
-              <li key={stage.id} className="stage-item">
+              <li
+                key={stage.id}
+                className={`stage-item ${stage.isMock ? 'stage-item-mock' : ''}`.trim()}
+              >
                 <div className="stage-card">
                   <div className="stage-image-area">
                     {stage.imageUrl ? (
                       <img src={stage.imageUrl} alt={`${stage.title}の画像`} className="stage-image" />
                     ) : (
-                      <div className="stage-image-placeholder">画像未設定</div>
+                      <div className="stage-image-placeholder" aria-hidden="true" />
                     )}
                     <input
                       id={`stage-image-upload-${stage.id}`}

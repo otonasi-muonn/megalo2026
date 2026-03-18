@@ -51,11 +51,14 @@ Set-Location C:\.program_code\megalo2026\apps\backend
 pnpm dlx vercel dev --listen 8787
 ```
 
-補助として、Hono を直接起動する場合:
+補足:
 
 ```powershell
 pnpm dev
 ```
+
+`pnpm dev` は現状 `export default app` を評価して終了するため、APIサーバー待受の用途には使いません。  
+ローカルAPIの疎通確認は `pnpm dlx vercel dev --listen 8787` を利用してください。
 
 ## API認証メモ
 

@@ -29,7 +29,33 @@
 pnpm install
 ```
 
-### 2. Supabase ローカル環境の起動
+### 2. 環境変数を設定
+
+用途ごとに配置先が異なります。
+
+```bash
+# フロントエンド
+# apps/frontend/.env
+VITE_API_BASE_URL=http://localhost:8787
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=<publishable_key>
+
+# バックエンド
+# apps/backend/.env
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVICE_ROLE_KEY=<secret_key>
+SUPABASE_JWT_AUDIENCE=authenticated
+
+# Supabase CLI（Google OAuth Provider）
+# supabase/.env（またはリポジトリ直下 .env）
+SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=<google_client_id>
+SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET=<google_client_secret>
+```
+
+- `publishable_key` / `secret_key` は `pnpm dlx supabase status` で確認できます。
+- `apps/backend/.env` は `apps/backend/.env.example` から作成できます。
+
+### 3. Supabase ローカル環境の起動
 
 ```bash
 pnpm supabase:start
@@ -39,12 +65,17 @@ pnpm supabase:status
 - `supabase/config.toml` でローカルの DB/Auth/Studio ポートを管理します。
 - `supabase/seed.sql` は `pnpm supabase:reset` 実行時に再投入されます。
 
-### 3. アプリケーション起動
+### 4. アプリケーション起動
 
 別ターミナルでそれぞれ起動します。
 
 ```bash
-pnpm --filter hono dev
+# backend (Hono)
+cd apps/backend
+pnpm dlx vercel dev --listen 8787
+
+# frontend (React / Vite)
+cd ../..
 pnpm frontend:dev:vite
 # CCSSランタイムをホーム表示で確認する場合
 pnpm frontend:dev:ccss
@@ -52,13 +83,24 @@ pnpm frontend:dev:ccss
 
 `frontend:dev:vite` は既存React UI（Vite構成）を表示します。  
 `frontend:dev:ccss` は同じアプリシェルを使い、`/` をCCSSランタイム表示へ切り替えます。
+- `pnpm --filter hono dev` は現状サーバー待受を行わず、即終了します。
+- OAuth 検証時は `localhost` と `127.0.0.1` を混在させず、同じホストでアクセスしてください。
 
-### 4. DBリセット / 停止
+### 5. DBリセット / 停止
 
 ```bash
 pnpm supabase:reset
 pnpm supabase:stop
 ```
+
+### トラブルシュート（OAuth）
+
+- `Unsupported provider: provider is not enabled` が出る場合
+  - `supabase/.env`（または `.env`）に Google Client ID/Secret が設定されているか確認
+  - `pnpm dlx supabase stop && pnpm dlx supabase start` で再起動
+- `supabase_vector_megalo2026` のコンテナ競合が出る場合
+  - `docker ps -a --filter "label=com.supabase.cli.project=megalo2026" --format "{{.ID}}" | % { docker rm -f $_ }`
+  - その後に `pnpm dlx supabase start`
 
 ## ✅ 検証コマンド
 

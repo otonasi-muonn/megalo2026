@@ -2,11 +2,11 @@
   "name": "hono",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx --env-file-if-exists=.env src/index.ts",
     "typecheck": "tsc --noEmit",
-    "ccss:style-patch:contract": "tsx scripts/ccss-style-patch-contract.ts",
-    "ccss:recipe-integrity": "tsx scripts/ccss-recipe-integrity-check.ts",
-    "ccss:smoke": "tsx scripts/ccss-api-smoke-test.ts"
+    "ccss:style-patch:contract": "tsx --env-file-if-exists=.env scripts/ccss-style-patch-contract.ts",
+    "ccss:recipe-integrity": "tsx --env-file-if-exists=.env scripts/ccss-recipe-integrity-check.ts",
+    "ccss:smoke": "tsx --env-file-if-exists=.env scripts/ccss-api-smoke-test.ts"
   },
   "dependencies": {
     "@ccss/compiler": "workspace:*",

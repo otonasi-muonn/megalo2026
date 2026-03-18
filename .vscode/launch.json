@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/.program_code/megalo2026/apps/frontend/public/ccss",
-      "program": "c:/.program_code/megalo2026/apps/frontend/public/ccss/build/Debug/outDebug",
+      "cwd": "c:/.program_code/megalo2026/packages/ccss-compiler/examples/output",
+      "program": "c:/.program_code/megalo2026/packages/ccss-compiler/examples/output/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
