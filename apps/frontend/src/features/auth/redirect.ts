@@ -3,24 +3,66 @@ export const DEFAULT_AUTH_REDIRECT_PATH = '/dashboard'
 const LOGIN_PATH = '/login'
 const AUTH_CALLBACK_PATH = '/auth/callback'
 const REDIRECT_QUERY_KEY = 'redirect'
+const INTERNAL_REDIRECT_ORIGIN = 'https://redirect.local'
+const MAX_REDIRECT_PATH_LENGTH = 2048
 
-const isSafeInternalPath = (path: string): boolean =>
-  path.startsWith('/') && !path.startsWith('//')
+const hasControlCharacter = (value: string): boolean => {
+  for (const char of value) {
+    const code = char.charCodeAt(0)
+    if (code <= 0x1f || code === 0x7f) {
+      return true
+    }
+  }
+
+  return false
+}
+
+const parseInternalRedirectPath = (path: string): URL | null => {
+  if (!path.startsWith('/') || path.startsWith('//')) {
+    return null
+  }
+  if (
+    path.length > MAX_REDIRECT_PATH_LENGTH ||
+    path.includes('\\') ||
+    hasControlCharacter(path)
+  ) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(path, INTERNAL_REDIRECT_ORIGIN)
+    if (parsed.origin !== INTERNAL_REDIRECT_ORIGIN || !parsed.pathname.startsWith('/')) {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const toNormalizedInternalPath = (url: URL): string =>
+  `${url.pathname}${url.search}${url.hash}`
 
 export const resolveRedirectPath = (
   value: string | null | undefined,
   fallback = DEFAULT_AUTH_REDIRECT_PATH,
 ): string => {
+  const fallbackUrl = parseInternalRedirectPath(fallback)
+  const safeFallback = fallbackUrl
+    ? toNormalizedInternalPath(fallbackUrl)
+    : DEFAULT_AUTH_REDIRECT_PATH
+
   const trimmed = value?.trim()
   if (!trimmed) {
-    return fallback
+    return safeFallback
   }
 
-  if (!isSafeInternalPath(trimmed)) {
-    return fallback
+  const redirectUrl = parseInternalRedirectPath(trimmed)
+  if (!redirectUrl) {
+    return safeFallback
   }
 
-  return trimmed
+  return toNormalizedInternalPath(redirectUrl)
 }
 
 export const getRedirectPathFromSearch = (
