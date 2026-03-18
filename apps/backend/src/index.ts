@@ -1355,6 +1355,108 @@ app.get('/api/ccss/audit/state-events', requireCcssAdmin, async (c) => {
   return c.json({ data: data ?? [] })
 })
 
+app.get('/api/ccss/audit/sessions', requireCcssAdmin, async (c) => {
+  const limit = parseQueryLimit(c, c.req.query('limit'), 50)
+  if (limit instanceof Response) {
+    return limit
+  }
+
+  const stateId = c.req.query('stateId')?.trim()
+  const eventName = c.req.query('eventName')?.trim()
+  if (stateId && !CCSS_STATE_ID_PATTERN.test(stateId)) {
+    return jsonCodeError(
+      c,
+      400,
+      'CCSS_INVALID_STATE',
+      'stateId は ccss:<page>:<component>:<state> 形式で指定してください。',
+      '例: ccss:sample:sample-panel:menu-open',
+    )
+  }
+
+  const scanLimit = Math.min(limit * 20, 4000)
+  let query = supabase
+    .from('ccss_state_events')
+    .select('session_key,state_id,event_name,request_id,patch_id,created_at')
+    .order('created_at', { ascending: false })
+    .limit(scanLimit)
+
+  if (stateId && stateId.length > 0) {
+    query = query.eq('state_id', stateId)
+  }
+  if (eventName && eventName.length > 0) {
+    query = query.eq('event_name', eventName)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    return dbError(c, error, 'session一覧監査ログの取得に失敗しました')
+  }
+
+  type SessionAggregate = {
+    sessionKey: string
+    latestCreatedAt: string
+    latestStateId: string
+    latestEventName: string
+    eventCount: number
+    withPatchIdCount: number
+    withRequestIdCount: number
+    stateIds: Set<string>
+    eventNames: Set<string>
+  }
+
+  const aggregates = new Map<string, SessionAggregate>()
+  for (const row of data ?? []) {
+    const existing = aggregates.get(row.session_key)
+    if (!existing) {
+      aggregates.set(row.session_key, {
+        sessionKey: row.session_key,
+        latestCreatedAt: row.created_at,
+        latestStateId: row.state_id,
+        latestEventName: row.event_name,
+        eventCount: 1,
+        withPatchIdCount: row.patch_id ? 1 : 0,
+        withRequestIdCount: row.request_id ? 1 : 0,
+        stateIds: new Set([row.state_id]),
+        eventNames: new Set([row.event_name]),
+      })
+      continue
+    }
+
+    existing.eventCount += 1
+    if (row.patch_id) {
+      existing.withPatchIdCount += 1
+    }
+    if (row.request_id) {
+      existing.withRequestIdCount += 1
+    }
+    existing.stateIds.add(row.state_id)
+    existing.eventNames.add(row.event_name)
+  }
+
+  const sessions = Array.from(aggregates.values())
+    .sort((a, b) => b.latestCreatedAt.localeCompare(a.latestCreatedAt))
+    .slice(0, limit)
+    .map((session) => ({
+      sessionKey: session.sessionKey,
+      latestCreatedAt: session.latestCreatedAt,
+      latestStateId: session.latestStateId,
+      latestEventName: session.latestEventName,
+      eventCount: session.eventCount,
+      withPatchIdCount: session.withPatchIdCount,
+      withRequestIdCount: session.withRequestIdCount,
+      uniqueStateCount: session.stateIds.size,
+      uniqueEventNameCount: session.eventNames.size,
+    }))
+
+  return c.json({
+    window: {
+      sessionLimit: limit,
+      scannedRows: data?.length ?? 0,
+    },
+    data: sessions,
+  })
+})
+
 app.get('/api/ccss/audit/session-trace', requireCcssAdmin, async (c) => {
   const rawSessionKey = c.req.query('sessionKey')
   if (typeof rawSessionKey !== 'string' || rawSessionKey.trim().length === 0) {

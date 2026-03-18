@@ -94,6 +94,12 @@ const main = async (): Promise<void> => {
     `監査state-events API 無認証ステータスが想定外です: ${auditStateEventsNoAuth.response.status}`,
   )
 
+  const auditSessionsNoAuth = await requestGet(app, '/api/ccss/audit/sessions?limit=5')
+  assert(
+    auditSessionsNoAuth.response.status === 401,
+    `監査sessions API 無認証ステータスが想定外です: ${auditSessionsNoAuth.response.status}`,
+  )
+
   const sessionTraceNoAuth = await requestGet(
     app,
     '/api/ccss/audit/session-trace?sessionKey=ccss-smoke-session&limit=5',

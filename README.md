@@ -101,6 +101,7 @@ pnpm ccss:checks
 `CCSS_TRANSPILE_AUDIT_ENABLED=true` を有効化すると、`transpile/validate` の成功/失敗が `ccss_transpile_jobs` テーブルへ監査保存されます。
 `CCSS_STATE_EVENT_AUDIT_ENABLED=true` を有効化すると、`POST /api/ccss/state-events` でUI状態遷移イベントを `ccss_state_events` テーブルへ監査保存できます。
 管理者JWTで `GET /api/ccss/audit/style-patches` / `GET /api/ccss/audit/transpile-jobs` / `GET /api/ccss/audit/state-events` を呼ぶと、監査ログ一覧を参照できます。
+`GET /api/ccss/audit/sessions` を呼ぶと、state-events から sessionKey ごとの直近集計を取得できます。
 `GET /api/ccss/audit/session-trace?sessionKey=<...>` を呼ぶと、`state -> patch -> appliedRecipeIds` の相関済み時系列を取得できます。
 `GET /api/ccss/audit/summary` を呼ぶと、style/transpile/state-events の直近集計を取得できます。
 `pnpm ccss:recipe-integrity` で、manifestとレシピ定義の整合（stateId対応・重複・class命名）を自動検証できます。
@@ -138,6 +139,7 @@ pnpm --filter frontend dev
 - `生成物を読み込む` 後に `対象state` を選択し、`style-patch API適用` を押すと、`applied recipes` と `state-events` の結果が表示されること
 - `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
 - `http://localhost:5173/ccss-audit` を開き、管理者Bearer tokenで `style-patch / transpile / state-events` 監査ログ一覧を取得できること
+- `recent sessions` に sessionKey 候補と event件数が表示され、`sessionKeyにセット` を押せること
 - `state-events フィルタ` の `sessionKey` を入力して取得すると、`session trace` に `state -> patch -> recipes` 相関が表示されること
 - `audit summary` に `rejectionCodes` / `status` / `eventNames` の集計が表示されること
 
