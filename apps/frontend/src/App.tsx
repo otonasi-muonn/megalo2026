@@ -114,14 +114,6 @@ const parseResultQuery = (search: string): ResultQuery => {
   }
 }
 
-const isRouteActive = (currentPathname: string, path: string): boolean => {
-  if (path === '/') {
-    return currentPathname === '/'
-  }
-
-  return currentPathname === path || currentPathname.startsWith(`${path}/`)
-}
-
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
@@ -210,7 +202,14 @@ function App() {
     }
 
     if (pathname === '/') {
-      return <HomePage />
+      return (
+        <HomePage
+          isAuthLoading={isAuthLoading}
+          isLoggedIn={Boolean(user)}
+          isSigningOut={isSigningOut}
+          onSignOut={handleSignOut}
+        />
+      )
     }
 
     if (pathname === '/ccss-poc') {
@@ -296,68 +295,6 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="app-brand">
-          <AppLink className="app-title" to="/">
-            megalo2026
-          </AppLink>
-        </div>
-        <nav className="app-nav" aria-label="主要ナビゲーション">
-          <>
-            <AppLink
-              to="/"
-              className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
-            >
-              ホーム
-            </AppLink>
-            <AppLink
-              to="/dashboard"
-              className={
-                isRouteActive(pathname, '/dashboard') ? 'nav-link active' : 'nav-link'
-              }
-            >
-              ダッシュボード
-            </AppLink>
-            <AppLink
-              to="/create"
-              className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
-            >
-              ステージ作成
-            </AppLink>
-            <AppLink
-              to="/ccss-poc"
-              className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
-            >
-              CCSS PoC
-            </AppLink>
-            <AppLink
-              to="/ccss-audit"
-              className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
-            >
-              CCSS監査
-            </AppLink>
-          </>
-          {!isAuthLoading && (
-            user ? (
-              <button
-                type="button"
-                className="nav-link nav-link-button"
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-              >
-                {isSigningOut ? 'ログアウト中...' : 'ログアウト'}
-              </button>
-            ) : (
-              <AppLink
-                to="/login"
-                className={isRouteActive(pathname, '/login') ? 'nav-link active' : 'nav-link'}
-              >
-                ログイン
-              </AppLink>
-            )
-          )}
-        </nav>
-      </header>
       {signOutErrorMessage && (
         <p className="error-text" role="alert">
           {signOutErrorMessage}

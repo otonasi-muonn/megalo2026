@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from '../components/AppLink'
+import { StageStats } from '../components/stage/StageStats'
 import type { Pagination, StageListItemDto, StageListResponse } from '../types/api'
 import { apiGet } from '../utils/api'
 import { copyStagePlayUrl } from '../utils/stageShare'
@@ -15,7 +16,21 @@ const initialPagination: Pagination = {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
-export const HomePage = () => {
+const OFFICIAL_AUTHOR_ID = 'a0000000-0000-4000-8000-000000000001'
+
+type HomePageProps = {
+  isAuthLoading: boolean
+  isLoggedIn: boolean
+  isSigningOut: boolean
+  onSignOut: () => Promise<void>
+}
+
+export const HomePage = ({
+  isAuthLoading,
+  isLoggedIn,
+  isSigningOut,
+  onSignOut,
+}: HomePageProps) => {
   const [stages, setStages] = useState<StageListItemDto[]>([])
   const [pagination, setPagination] = useState<Pagination>(initialPagination)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,6 +48,7 @@ export const HomePage = () => {
 
         const response = await apiGet<StageListResponse>('/api/stages', {
           query: {
+            author_id: OFFICIAL_AUTHOR_ID,
             is_published: true,
             page: 1,
             limit: 12,
@@ -68,12 +84,17 @@ export const HomePage = () => {
     }
   }
 
+  const featuredStagePath = useMemo(() => {
+    const featuredStage = stages[0]
+    return featuredStage ? `/play/${featuredStage.id}` : '/dashboard'
+  }, [stages])
+
   return (
     <>
       <section className="hero-section">
         <div className="hero-container">
           <nav className="hero-nav">
-            <AppLink to="/play/featured" className="button hero-button play-button">
+            <AppLink to={featuredStagePath} className="button hero-button play-button">
               <img
                 src="/images/playbutton.png"
                 alt="Play"
@@ -95,12 +116,32 @@ export const HomePage = () => {
               />
             </AppLink>
           </nav>
+          <div className="hero-auth-actions">
+            {isAuthLoading ? (
+              <p className="status-text home-auth-status">認証状態を確認中...</p>
+            ) : isLoggedIn ? (
+              <button
+                type="button"
+                className="button secondary hero-auth-button"
+                onClick={() => {
+                  void onSignOut()
+                }}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? 'ログアウト中...' : 'ログアウト'}
+              </button>
+            ) : (
+              <AppLink to="/login" className="button secondary hero-auth-button">
+                ログイン
+              </AppLink>
+            )}
+          </div>
         </div>
       </section>
 
       <section className="page-card home-stage-card">
-        <h2 className="page-heading">公開ステージ一覧</h2>
-        <p className="status-text">最新の公開ステージをチェック！</p>
+        <h2 className="page-heading">公式ステージ</h2>
+        <p className="status-text">公式アカウントが作成したステージをプレイできます。</p>
 
         {isLoading && <p className="status-text">読み込み中...</p>}
 
@@ -119,34 +160,39 @@ export const HomePage = () => {
         {!isLoading && !errorMessage && (
           <>
             <p className="status-text">
-              取得件数: {pagination.total}件（ページ {pagination.page}/{pagination.total_pages || 1}）
+              {pagination.total === 0
+                ? '公開中の公式ステージはまだありません。'
+                : `公開中の公式ステージ: ${pagination.total}件`}
             </p>
-            <ul className="stage-list">
+            <ul className="home-stage-grid">
               {stages.map((stage) => (
-                <li key={stage.id} className="stage-item">
-                  <div>
-                    <strong>{stage.title}</strong>
-                    <p className="meta-text">
-                      play: {stage.play_count} / clear: {stage.clear_count} / like: {stage.like_count}
-                    </p>
-                  </div>
-                  <div className="inline-actions">
-                    <AppLink to={`/play/${stage.id}`} className="button secondary">
-                      プレイ
-                    </AppLink>
-                    <button
-                      type="button"
-                      className="button secondary"
-                      onClick={() => {
-                        void handleCopyShareLink(stage)
-                      }}
-                    >
-                      共有リンクをコピー
-                    </button>
-                  </div>
+                <li key={stage.id} className="home-stage-item">
+                  <article className="official-stage-card">
+                    <p className="official-stage-label">OFFICIAL</p>
+                    <h3 className="official-stage-title">{stage.title}</h3>
+                    <StageStats
+                      playCount={stage.play_count}
+                      clearCount={stage.clear_count}
+                      likeCount={stage.like_count}
+                      className="meta-text official-stage-metrics"
+                    />
+                    <div className="official-stage-actions">
+                      <AppLink to={`/play/${stage.id}`} className="button secondary">
+                        プレイ
+                      </AppLink>
+                      <button
+                        type="button"
+                        className="button secondary"
+                        onClick={() => {
+                          void handleCopyShareLink(stage)
+                        }}
+                      >
+                        共有リンクをコピー
+                      </button>
+                    </div>
+                  </article>
                 </li>
               ))}
-              {stages.length === 0 && <li className="status-text">公開ステージは0件です。</li>}
             </ul>
           </>
         )}

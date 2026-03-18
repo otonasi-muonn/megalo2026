@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
+import { StageStats } from '../components/stage/StageStats'
 import { Trash2 } from 'lucide-react'
 import { PencilLine } from 'lucide-react'
 import { ArrowDownUp } from 'lucide-react'
@@ -320,6 +321,12 @@ export const DashboardPage = () => {
                   >
                     {stage.title}
                   </div>
+                  <StageStats
+                    playCount={stage.play_count}
+                    clearCount={stage.clear_count}
+                    likeCount={stage.like_count}
+                    className="meta-text stage-stats-text"
+                  />
                   <div className="favorite-rating">
                     <button
                       type="button"

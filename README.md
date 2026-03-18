@@ -86,6 +86,8 @@ pnpm frontend:dev:ccss
 
 `frontend:dev:vite` は既存React UI（Vite構成）を表示します。  
 `frontend:dev:ccss` も通常UIと同じルーティングで起動し、`/ccss-poc` と `/ccss-audit` を追加で確認できます。
+- ホーム（`/`）では、公式アカウントの公開ステージを一覧表示します。
+- 画面上部のグローバルヘッダーは廃止し、ホームのボタン（Play/Create/My Stages/ログイン）から遷移します。
 - `pnpm --filter hono dev` は現状サーバー待受を行わず、即終了します。
 - OAuth 検証時は `127.0.0.1` へ統一してアクセスしてください。
 
