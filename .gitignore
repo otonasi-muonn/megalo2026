@@ -65,3 +65,5 @@ config.local.json
 *.sqlite3
 *.db
 dump.rdb
+.vercel
+.env*.local

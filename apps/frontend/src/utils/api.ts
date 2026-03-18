@@ -1,9 +1,12 @@
+import { getAccessToken } from '../features/auth/authActions'
+
 type QueryValue = string | number | boolean | null | undefined
 
 interface RequestOptions {
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
+  withAuth?: boolean
 }
 
 const API_BASE_URL =
@@ -30,11 +33,20 @@ const requestJson = async <TResponse>(
   path: string,
   options: RequestOptions = {},
 ): Promise<TResponse> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (options.withAuth !== false) {
+    const token = await getAccessToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+  }
+
   const response = await fetch(buildUrl(path, options.query), {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   })

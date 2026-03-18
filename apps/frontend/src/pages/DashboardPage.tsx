@@ -11,6 +11,8 @@ import type {
   StageListItemDto,
   StageListResponse,
 } from '../types/api'
+
+type StageListItemWithImage = StageListItemDto & { imageUrl?: string }
 import { apiGet } from '../utils/api'
 import './DashboardPage.css'
 
@@ -24,7 +26,7 @@ const initialPagination: Pagination = {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
-const mockStages: StageListItemDto[] = [
+const mockStages: StageListItemWithImage[] = [
   {
     id: '1',
     author_id: 'mock-user-1',
@@ -76,7 +78,7 @@ type SortOrder = 'desc' | 'asc'
 
 export const DashboardPage = () => {
   const [displayName, setDisplayName] = useState('未取得')
-  const [stages, setStages] = useState<StageListItemDto[]>(mockStages) // 仮データを初期値に設定
+  const [stages, setStages] = useState<StageListItemWithImage[]>(mockStages) // 仮データを初期値に設定
   const [pagination, setPagination] = useState<Pagination>({
     ...initialPagination,
     total: mockStages.length,
@@ -172,7 +174,7 @@ export const DashboardPage = () => {
           signal: controller.signal,
         })
 
-        setStages(stageResponse.data)
+        setStages(stageResponse.data as StageListItemWithImage[])
         setPagination(stageResponse.pagination)
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {

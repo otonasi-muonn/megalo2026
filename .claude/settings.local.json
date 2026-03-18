@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where gh:*)",
+      "Bash(export PATH=\"$PATH:/c/Program Files \\(x86\\)/GitHub CLI:/c/Users/tobak/AppData/Local/Programs/gh/bin:/c/Users/tobak/scoop/shims\")",
+      "Bash(gh --version)"
+    ]
+  }
+}

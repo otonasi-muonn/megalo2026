@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from './components/AppLink'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { CreatePage } from './pages/CreatePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EditPage } from './pages/EditPage'
 import { HomePage } from './pages/HomePage'
+import { LoginPage } from './pages/LoginPage'
 import { PlayPage } from './pages/PlayPage'
 import { ResultPage } from './pages/ResultPage'
+import { useAuth } from './features/auth/useAuth'
+import { signOut } from './features/auth/authActions'
 import { getCurrentLocation, subscribeLocation } from './utils/navigation'
 import './App.css'
 
@@ -76,6 +80,8 @@ const isRouteActive = (currentPathname: string, path: string): boolean => {
 
 function App() {
   const [locationState, setLocationState] = useState(getCurrentLocation)
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   useEffect(() => subscribeLocation(() => setLocationState(getCurrentLocation())), [])
 
@@ -85,20 +91,46 @@ function App() {
   const editStageId = getPathParam(pathname, '/edit/')
   const playStageId = getPathParam(pathname, '/play/')
 
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true)
+      await signOut()
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
+
   const content = (() => {
     if (pathname === '/') {
       return <HomePage />
     }
 
+    if (pathname === '/login') {
+      return <LoginPage />
+    }
+
+    if (pathname === '/auth/callback') {
+      return <AuthCallbackPage />
+    }
+
     if (pathname === '/dashboard') {
+      if (!isAuthLoading && !user) {
+        return <LoginPage />
+      }
       return <DashboardPage />
     }
 
     if (pathname === '/create') {
+      if (!isAuthLoading && !user) {
+        return <LoginPage />
+      }
       return <CreatePage />
     }
 
     if (editStageId) {
+      if (!isAuthLoading && !user) {
+        return <LoginPage />
+      }
       return <EditPage stageId={editStageId} />
     }
 
@@ -153,6 +185,25 @@ function App() {
           >
             ステージ作成
           </AppLink>
+          {!isAuthLoading && (
+            user ? (
+              <button
+                type="button"
+                className="nav-link nav-link-button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? 'ログアウト中...' : 'ログアウト'}
+              </button>
+            ) : (
+              <AppLink
+                to="/login"
+                className={isRouteActive(pathname, '/login') ? 'nav-link active' : 'nav-link'}
+              >
+                ログイン
+              </AppLink>
+            )
+          )}
         </nav>
       </header>
       <main className="app-main">{content}</main>

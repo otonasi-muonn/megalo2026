@@ -1,0 +1,43 @@
+.login-page {
+  max-width: 440px;
+  margin: 40px auto;
+  align-self: center;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.google-signin-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+
+.google-signin-button:hover:not(:disabled) {
+  background: #f9fafb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.google-signin-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-note {
+  font-size: 12px;
+  color: #9ca3af;
+}
