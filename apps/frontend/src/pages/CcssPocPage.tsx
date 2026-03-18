@@ -7,6 +7,7 @@ type ManifestState = {
   stateId: string
   kind: 'boolean' | 'enum'
   initialValue: boolean | string
+  enumValues?: string[]
 }
 
 type CcssManifest = {
@@ -340,7 +341,11 @@ export const CcssPocPage = () => {
             component: <strong>{manifest.component.name}</strong>
           </p>
           <p className="status-text">
-            states: {manifest.states.map((state) => state.stateId).join(', ')}
+            states: {manifest.states.map((state) => (
+              state.kind === 'enum'
+                ? `${state.stateId}(${state.enumValues?.join('|') ?? ''})`
+                : state.stateId
+            )).join(', ')}
           </p>
           {appliedRecipes.length > 0 && (
             <p className="success-text">applied recipes: {appliedRecipes.join(', ')}</p>

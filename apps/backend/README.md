@@ -95,6 +95,8 @@ pnpm ccss:transpile-build
 pnpm ccss:checks
 ```
 
+- `pnpm ccss:manifest-check` は enum state の `enumValues`（空配列禁止・重複禁止・`initialValue` 包含）も検証します。
+
 期待結果:
 
 - `CCSS style-patch contract check: PASSED` が表示されること

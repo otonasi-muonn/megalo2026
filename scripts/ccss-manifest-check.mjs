@@ -82,6 +82,28 @@ const validateManifest = (manifest, filePath) => {
     if (state.kind === 'enum' && typeof state.initialValue !== 'string') {
       errors.push(`states[${index}].initialValue は string が必要です: ${filePath}`)
     }
+    if (state.kind === 'enum') {
+      if (!Array.isArray(state.enumValues) || state.enumValues.length === 0) {
+        errors.push(`states[${index}].enumValues は空でない配列が必要です: ${filePath}`)
+      } else {
+        const enumValues = new Set()
+        for (let enumIndex = 0; enumIndex < state.enumValues.length; enumIndex += 1) {
+          const enumValue = state.enumValues[enumIndex]
+          if (typeof enumValue !== 'string' || enumValue.trim().length === 0) {
+            errors.push(`states[${index}].enumValues[${enumIndex}] が不正です: ${filePath}`)
+            continue
+          }
+          if (enumValues.has(enumValue)) {
+            errors.push(`states[${index}].enumValues が重複しています: ${enumValue} (${filePath})`)
+            continue
+          }
+          enumValues.add(enumValue)
+        }
+        if (typeof state.initialValue === 'string' && !enumValues.has(state.initialValue)) {
+          errors.push(`states[${index}].initialValue が enumValues に含まれていません: ${filePath}`)
+        }
+      }
+    }
     if (typeof state.stateId !== 'string' || !STATE_ID_PATTERN.test(state.stateId)) {
       errors.push(`states[${index}].stateId が不正です: ${filePath}`)
       continue

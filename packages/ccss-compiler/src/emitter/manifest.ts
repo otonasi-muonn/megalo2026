@@ -15,5 +15,8 @@ export const emitManifest = (ir: CompilerIR): string => JSON.stringify({
     kind: state.kind,
     initialValue: state.initialValue,
     stateId: state.stateId,
+    ...(state.kind === 'enum'
+      ? { enumValues: (state.enumValues ?? [String(state.initialValue)]).filter((value) => value.length > 0) }
+      : {}),
   })),
 }, null, 2) + '\n'

@@ -119,6 +119,9 @@ export const normalizeToCompilerIR = (
     kind: state.kind,
     initialValue: state.initialValue,
     stateId: `ccss:${pageSlug}:${componentSlug}:${toKebab(state.name) || 'state'}`,
+    ...(state.kind === 'enum'
+      ? { enumValues: (state.enumValues ?? [String(state.initialValue)]).filter((value) => value.length > 0) }
+      : {}),
   }))
   const jsxRootWithStateInputs = injectMissingStateInputs(component.jsxRoot, states)
 

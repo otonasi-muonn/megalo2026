@@ -9,6 +9,7 @@ export type ParsedState = {
   setterName: string
   kind: 'boolean' | 'enum'
   initialValue: boolean | string
+  enumValues?: string[]
 }
 
 export type JsxAttribute = {
@@ -40,6 +41,7 @@ export type CompilerState = {
   kind: 'boolean' | 'enum'
   initialValue: boolean | string
   stateId: string
+  enumValues?: string[]
 }
 
 export type CompilerIR = {

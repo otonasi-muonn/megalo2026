@@ -208,12 +208,48 @@ const extractUseStateDeclarations = (
           setterName: second.name.text,
           kind: 'enum',
           initialValue: initialArg.text,
+          enumValues: [initialArg.text],
         })
         continue
       }
 
       errors.push(createError(sourceFile, initialArg, 'useState初期値は boolean または文字列リテラルのみ許可します。'))
     }
+  }
+
+  const enumValueSets = new Map<string, Set<string>>()
+  for (const state of states) {
+    if (state.kind !== 'enum' || typeof state.initialValue !== 'string') {
+      continue
+    }
+    enumValueSets.set(state.setterName, new Set([state.initialValue]))
+  }
+
+  if (enumValueSets.size === 0 || !functionNode.body || !ts.isBlock(functionNode.body)) {
+    return states
+  }
+
+  const walk = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const values = enumValueSets.get(node.expression.text)
+      if (values) {
+        const nextValue = node.arguments[0]
+        if (ts.isStringLiteral(nextValue) || ts.isNoSubstitutionTemplateLiteral(nextValue)) {
+          values.add(nextValue.text)
+        }
+      }
+    }
+    ts.forEachChild(node, walk)
+  }
+
+  walk(functionNode.body)
+
+  for (const state of states) {
+    if (state.kind !== 'enum') {
+      continue
+    }
+    const values = enumValueSets.get(state.setterName)
+    state.enumValues = values ? [...values] : [String(state.initialValue)]
   }
 
   return states
