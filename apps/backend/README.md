@@ -84,6 +84,8 @@ pnpm dev
 ```powershell
 pnpm run ccss:style-patch:contract
 pnpm run ccss:recipe-integrity
+# repo root から一括実行する場合
+pnpm ccss:transpile-build
 ```
 
 期待結果:
