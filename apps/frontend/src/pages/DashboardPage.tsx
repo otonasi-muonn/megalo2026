@@ -24,7 +24,12 @@ const initialPagination: Pagination = {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
 
-const mockStages: StageListItemDto[] = [
+type DashboardStage = StageListItemDto & {
+  imageUrl?: string
+  isMock?: boolean
+}
+
+const mockStages: DashboardStage[] = [
   {
     id: '1',
     author_id: 'mock-user-1',
@@ -35,6 +40,7 @@ const mockStages: StageListItemDto[] = [
     like_count: 8,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '2',
@@ -46,6 +52,7 @@ const mockStages: StageListItemDto[] = [
     like_count: 2,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '3',
@@ -57,6 +64,7 @@ const mockStages: StageListItemDto[] = [
     like_count: 15,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
   {
     id: '4',
@@ -68,6 +76,7 @@ const mockStages: StageListItemDto[] = [
     like_count: 5,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     updated_at: new Date().toISOString(),
+    isMock: true,
   },
 ]
 
@@ -76,7 +85,7 @@ type SortOrder = 'desc' | 'asc'
 
 export const DashboardPage = () => {
   const [displayName, setDisplayName] = useState('未取得')
-  const [stages, setStages] = useState<StageListItemDto[]>(mockStages) // 仮データを初期値に設定
+  const [stages, setStages] = useState<DashboardStage[]>(mockStages) // 仮データを初期値に設定
   const [pagination, setPagination] = useState<Pagination>({
     ...initialPagination,
     total: mockStages.length,
@@ -172,7 +181,7 @@ export const DashboardPage = () => {
           signal: controller.signal,
         })
 
-        setStages(stageResponse.data)
+        setStages(stageResponse.data.map((stage) => ({ ...stage, isMock: false })))
         setPagination(stageResponse.pagination)
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -275,7 +284,7 @@ export const DashboardPage = () => {
             {sortedStages.map((stage) => (
               <li
                 key={stage.id}
-                className={`stage-item ${stage.title.startsWith('仮のステージ') ? 'stage-item-mock' : ''}`.trim()}
+                className={`stage-item ${stage.isMock ? 'stage-item-mock' : ''}`.trim()}
               >
                 <div className="stage-card">
                   <div className="stage-image-area">

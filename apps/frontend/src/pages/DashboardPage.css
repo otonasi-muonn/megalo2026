@@ -248,9 +248,10 @@
 
 .page-card .search-controls input:focus,
 .page-card .search-controls input:focus-visible {
-  outline: none;
-  border-color: transparent;
-  box-shadow: none;
+  outline: 2px solid #1a5370;
+  outline-offset: 2px;
+  border-color: #1a5370;
+  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
 }
 
 .page-card .sort-controls select {
@@ -263,9 +264,10 @@
 
 .page-card .sort-controls select:focus,
 .page-card .sort-controls select:focus-visible {
-  outline: none;
-  border-color: transparent;
-  box-shadow: none;
+  outline: 2px solid #1a5370;
+  outline-offset: 2px;
+  border-color: #1a5370;
+  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
 }
 
 .page-card .sort-controls select.with-icon {
@@ -284,11 +286,11 @@
 }
 
 .page-card .sort-controls .sort-order-button:focus,
-.page-card .sort-controls .sort-order-button:focus-visible,
-.page-card .sort-controls .sort-order-button:active {
-  outline: none;
-  border-color: transparent;
-  box-shadow: none;
+.page-card .sort-controls .sort-order-button:focus-visible {
+  outline: 2px solid #1a5370;
+  outline-offset: 2px;
+  border-color: #1a5370;
+  box-shadow: 0 0 0 2px rgba(234, 249, 255, 0.85);
 }
 
 .page-card .sort-controls .sort-order-button svg {
