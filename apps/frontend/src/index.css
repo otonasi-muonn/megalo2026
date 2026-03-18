@@ -17,8 +17,13 @@
   box-sizing: border-box;
 }
 
+html {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
+  overscroll-behavior: none;
 }
 
 #root {
