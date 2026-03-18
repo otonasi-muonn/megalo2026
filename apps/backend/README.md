@@ -86,6 +86,7 @@ pnpm run ccss:style-patch:contract
 pnpm run ccss:recipe-integrity
 pnpm run ccss:smoke
 # repo root から一括実行する場合
+pnpm ccss:manifest-check
 pnpm ccss:css-safety
 pnpm ccss:transpile-build
 pnpm ccss:checks
@@ -96,5 +97,6 @@ pnpm ccss:checks
 - `CCSS style-patch contract check: PASSED` が表示されること
 - `CCSS recipe integrity check: PASSED` が表示されること
 - `CCSS API smoke test: PASSED` が表示されること
+- `CCSS manifest check: PASSED` が表示されること
 - `CCSS CSS safety check: PASSED` が表示されること
 - `pnpm ccss:checks` がエラー終了しないこと
