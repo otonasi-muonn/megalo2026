@@ -14,6 +14,11 @@ import type {
 import { apiGet } from '../utils/api'
 import './DashboardPage.css'
 
+type DashboardStage = StageListItemDto & {
+  imageUrl?: string
+  isMock?: boolean
+}
+
 const initialPagination: Pagination = {
   page: 1,
   limit: 10,
@@ -23,11 +28,6 @@ const initialPagination: Pagination = {
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : '不明なエラーが発生しました。'
-
-type DashboardStage = StageListItemDto & {
-  imageUrl?: string
-  isMock?: boolean
-}
 
 const mockStages: DashboardStage[] = [
   {
@@ -169,6 +169,7 @@ export const DashboardPage = () => {
 
         const profileResponse = await apiGet<ProfileResponse>('/api/profiles/me', {
           signal: controller.signal,
+          withAuth: true,
         })
         setDisplayName(profileResponse.data.display_name)
 
@@ -179,6 +180,7 @@ export const DashboardPage = () => {
             limit: 10,
           },
           signal: controller.signal,
+          withAuth: true,
         })
 
         setStages(stageResponse.data.map((stage) => ({ ...stage, isMock: false })))
