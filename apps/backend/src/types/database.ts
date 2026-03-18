@@ -3,6 +3,60 @@ import type { StageData } from './stage.js'
 export interface Database {
   public: {
     Tables: {
+      ccss_style_patches: {
+        Row: {
+          applied_recipe_ids: string[]
+          created_at: string
+          created_by: string | null
+          id: string
+          rejection_code: string | null
+          request_id: string
+          requested_payload: Record<string, unknown>
+          resolved_class_list: Array<{
+            targetClass: string
+            add: string[]
+          }>
+          ruleset_version: string
+          state_id: string
+          ttl_ms: number
+          view: string
+        }
+        Insert: {
+          applied_recipe_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          id: string
+          rejection_code?: string | null
+          request_id: string
+          requested_payload?: Record<string, unknown>
+          resolved_class_list?: Array<{
+            targetClass: string
+            add: string[]
+          }>
+          ruleset_version: string
+          state_id: string
+          ttl_ms: number
+          view: string
+        }
+        Update: {
+          applied_recipe_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          rejection_code?: string | null
+          request_id?: string
+          requested_payload?: Record<string, unknown>
+          resolved_class_list?: Array<{
+            targetClass: string
+            add: string[]
+          }>
+          ruleset_version?: string
+          state_id?: string
+          ttl_ms?: number
+          view?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string

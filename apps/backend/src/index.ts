@@ -22,6 +22,10 @@ type RateLimitBucket = {
   count: number
   resetAt: number
 }
+type CcssClassListItem = {
+  targetClass: string
+  add: string[]
+}
 
 const STAGE_LIST_SELECT =
   'id,author_id,title,is_published,play_count,clear_count,like_count,created_at,updated_at'
@@ -112,6 +116,8 @@ const parseBoolean = (value: string | undefined): boolean | undefined => {
   }
   return undefined
 }
+
+const ccssStylePatchAuditEnabled = parseBoolean(process.env.CCSS_STYLE_PATCH_AUDIT_ENABLED) ?? false
 
 const readJsonObject = async (c: AppContext): Promise<Record<string, unknown> | Response> => {
   try {
@@ -345,6 +351,48 @@ const consumeStylePatchRateLimit = (c: AppContext): { allowed: true } | { allowe
   existing.count += 1
   ccssStylePatchRateLimitBuckets.set(key, existing)
   return { allowed: true }
+}
+
+const toAuditText = (value: unknown, fallback: string): string => {
+  if (typeof value !== 'string') {
+    return fallback
+  }
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : fallback
+}
+
+const toAuditPayload = (value: unknown): Record<string, unknown> => {
+  if (value === undefined || value === null) {
+    return {}
+  }
+  if (isRecord(value)) {
+    return value
+  }
+  return { raw: value }
+}
+
+const writeStylePatchAudit = async (
+  c: AppContext,
+  record: Database['public']['Tables']['ccss_style_patches']['Insert'],
+): Promise<Response | null> => {
+  if (!ccssStylePatchAuditEnabled) {
+    return null
+  }
+
+  const { error } = await supabase
+    .from('ccss_style_patches')
+    .insert(record)
+
+  if (error) {
+    return jsonCodeError(
+      c,
+      500,
+      'CCSS_AUDIT_LOG_WRITE_FAILED',
+      'style-patch 監査ログの保存に失敗しました。',
+      error.message,
+    )
+  }
+  return null
 }
 
 const parseStageId = (c: AppContext): string | Response => {
@@ -881,92 +929,155 @@ app.post('/api/ccss/style-patch', optionalAuth, async (c) => {
     )
   }
 
+  const requestId = `req_${randomUUID().replace(/-/g, '')}`
+  const patchId = `ccss_patch_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`
+  const authUserId = getAuthUserId(c)
+
   const bodyResult = await readJsonObject(c)
   if (bodyResult instanceof Response) {
     return bodyResult
   }
 
+  const rejectWithAudit = async (
+    status: ErrorStatus,
+    code: string,
+    message: string,
+    hint: string,
+    view: unknown,
+    stateId: unknown,
+    payload: unknown,
+  ): Promise<Response> => {
+    const auditError = await writeStylePatchAudit(c, {
+      id: patchId,
+      request_id: requestId,
+      view: toAuditText(view, '[invalid-view]'),
+      state_id: toAuditText(stateId, '[invalid-state-id]'),
+      applied_recipe_ids: [],
+      resolved_class_list: [],
+      ruleset_version: CCSS_RULESET_VERSION,
+      ttl_ms: CCSS_PATCH_TTL_MS,
+      requested_payload: toAuditPayload(payload),
+      rejection_code: code,
+      created_by: authUserId,
+    })
+
+    if (auditError) {
+      return auditError
+    }
+
+    return jsonCodeError(c, status, code, message, hint)
+  }
+
   const rawView = bodyResult.view
   if (typeof rawView !== 'string' || rawView.trim().length === 0) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       400,
       'CCSS_INVALID_VIEW',
       'view は空でない文字列で指定してください',
       '例: sample',
+      rawView,
+      bodyResult.stateId,
+      bodyResult.payload,
     )
   }
   const view = rawView.trim()
 
   const rawStateId = bodyResult.stateId
   if (typeof rawStateId !== 'string' || !CCSS_STATE_ID_PATTERN.test(rawStateId)) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       400,
       'CCSS_INVALID_STATE',
       '未定義の stateId です',
       'ccss.manifest.json の stateId を指定してください',
+      view,
+      rawStateId,
+      bodyResult.payload,
     )
   }
   const stateId = rawStateId
 
   if (hasOwn(bodyResult, 'payload') && bodyResult.payload !== null && !isRecord(bodyResult.payload)) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       400,
       'CCSS_INVALID_PAYLOAD',
       'payload はJSONオブジェクトで指定してください',
       '例: { \"stageId\": \"...\" }',
+      view,
+      stateId,
+      bodyResult.payload,
     )
   }
-  const payload = bodyResult.payload ?? {}
+  const payload = toAuditPayload(bodyResult.payload)
 
   const unsafe = findUnsafeTokenPath(payload, 'payload')
   if (unsafe) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       422,
       'CCSS_UNSAFE_INPUT_REJECTED',
       `危険トークンを検知したため拒否しました: ${unsafe.path}`,
       `${unsafe.token} を含む入力を除去してください`,
+      view,
+      stateId,
+      payload,
     )
   }
 
   const knownStateRecipes = CCSS_RECIPE_REGISTRY.filter((recipe) => recipe.stateId === stateId)
   if (knownStateRecipes.length === 0) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       400,
       'CCSS_INVALID_STATE',
       '未定義の stateId です',
       'ccss.manifest.json の stateId を指定してください',
+      view,
+      stateId,
+      payload,
     )
   }
 
   const resolvedRecipes = knownStateRecipes.filter((recipe) => recipe.view === view)
   if (resolvedRecipes.length === 0) {
-    return jsonCodeError(
-      c,
+    return rejectWithAudit(
       403,
       'CCSS_RECIPE_OUT_OF_SCOPE',
       '指定 view に対応しないレシピ参照です',
       'view と stateId の組み合わせを見直してください',
+      view,
+      stateId,
+      payload,
     )
   }
 
-  const requestId = `req_${randomUUID().replace(/-/g, '')}`
-  const patchId = `ccss_patch_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`
+  const recipeIds = resolvedRecipes.map((recipe) => recipe.recipeId)
+  const classList: CcssClassListItem[] = resolvedRecipes.map((recipe) => ({
+    targetClass: recipe.targetClass,
+    add: recipe.addClasses,
+  }))
+
+  const auditError = await writeStylePatchAudit(c, {
+    id: patchId,
+    request_id: requestId,
+    view,
+    state_id: stateId,
+    applied_recipe_ids: recipeIds,
+    resolved_class_list: classList,
+    ruleset_version: CCSS_RULESET_VERSION,
+    ttl_ms: CCSS_PATCH_TTL_MS,
+    requested_payload: payload,
+    rejection_code: null,
+    created_by: authUserId,
+  })
+  if (auditError) {
+    return auditError
+  }
 
   return c.json({
     requestId,
     patchId,
     stateId,
     ttlMs: CCSS_PATCH_TTL_MS,
-    recipeIds: resolvedRecipes.map((recipe) => recipe.recipeId),
-    classList: resolvedRecipes.map((recipe) => ({
-      targetClass: recipe.targetClass,
-      add: recipe.addClasses,
-    })),
+    recipeIds,
+    classList,
     rulesetVersion: CCSS_RULESET_VERSION,
   })
 })

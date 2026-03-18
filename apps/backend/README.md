@@ -22,6 +22,7 @@ $env:SUPABASE_JWT_AUDIENCE="authenticated"
 - `SUPABASE_URL`: Supabase API URL
 - `SUPABASE_SERVICE_ROLE_KEY`: サービスロールキー（DB操作用）
 - `SUPABASE_JWT_AUDIENCE`: JWTの `aud` 検証値（未指定時 `authenticated`）
+- `CCSS_STYLE_PATCH_AUDIT_ENABLED`: `true` のとき `style-patch` 監査ログを `ccss_style_patches` に保存（既定 `false`）
 
 ## ローカル起動手順
 
@@ -69,6 +70,7 @@ pnpm dev
 - レート制限: 既定は 5秒あたり20リクエスト（IP / 認証ユーザー単位）
 - 超過時: `429 CCSS_RATE_LIMITED`（`retryAfterMs` を返却）
 - 環境変数: `CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS`, `CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS`
+- 監査ログ（任意）: `CCSS_STYLE_PATCH_AUDIT_ENABLED=true` で `ccss_style_patches` へ成功/失敗を保存します。
 
 `POST /api/ccss/transpile/validate`（管理者認証必須）
 

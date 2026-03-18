@@ -2,6 +2,7 @@ process.env.SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321'
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'dummy-service-role-key'
 process.env.CCSS_STYLE_PATCH_RATE_LIMIT_MAX_REQUESTS = '100'
 process.env.CCSS_STYLE_PATCH_RATE_LIMIT_WINDOW_MS = '1000'
+process.env.CCSS_STYLE_PATCH_AUDIT_ENABLED = 'false'
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
