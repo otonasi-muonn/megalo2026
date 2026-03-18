@@ -5,7 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;800&display=swap');
 
 .page-card.dashboard-page {
-  background: url('/images/sea.png') center / cover no-repeat;
+  background: url('/images/back.png') center / cover no-repeat;
   color: #e9f8ff;
   border-color: rgba(177, 224, 246, 0.45);
   font-family: 'Zen Maru Gothic', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
@@ -52,10 +52,17 @@
   background: url('/images/ribonn_mozinasi.png') center / contain no-repeat;
 }
 
+.page-card.dashboard-page .status-text.stage-count-text {
+  color: #102a6b;
+}
+
 .page-card.dashboard-page .error-text {
   color: #7b1f1f;
-  background: rgba(255, 235, 235, 0.86);
-  border-color: rgba(235, 174, 174, 0.95);
+  background: url('/images/paper.png') center / cover no-repeat;
+  background-position: 40% center;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding-left: 36px;
 }
 
 .page-card .stage-list {
@@ -101,6 +108,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.page-card .stage-item.stage-item-mock {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .page-card .stage-item.stage-item-mock .stage-card {
@@ -202,7 +216,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #e65072;
+  color: #000000;
   pointer-events: none;
 }
 
@@ -219,10 +233,11 @@
 }
 
 .page-card .search-controls input {
-  border: 1px solid rgba(151, 203, 228, 0.95);
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 4px 8px;
-  background-color: rgba(236, 249, 255, 0.9);
+  background: url('/images/paper.png') center / cover no-repeat;
+  background-position: 40% center;
   color: #12435d;
   min-width: 220px;
 }
@@ -231,12 +246,26 @@
   color: #5a8ba4;
 }
 
+.page-card .search-controls input:focus,
+.page-card .search-controls input:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .page-card .sort-controls select {
-  border: 1px solid rgba(151, 203, 228, 0.95);
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 4px 8px;
-  background-color: rgba(236, 249, 255, 0.9);
+  background: url('/images/paper.png') center / cover no-repeat;
   color: #12435d;
+}
+
+.page-card .sort-controls select:focus,
+.page-card .sort-controls select:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls select.with-icon {
@@ -249,9 +278,17 @@
   padding: 4px 8px;
   font-size: 12px;
   border-radius: 6px;
-  background: rgba(224, 245, 255, 0.86);
-  border-color: rgba(131, 174, 202, 0.95);
+  border: 1px solid transparent;
+  background: url('/images/paper.png') center / cover no-repeat;
   color: #1a5370;
+}
+
+.page-card .sort-controls .sort-order-button:focus,
+.page-card .sort-controls .sort-order-button:focus-visible,
+.page-card .sort-controls .sort-order-button:active {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .page-card .sort-controls .sort-order-button svg {
@@ -413,8 +450,15 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 24px;
+  padding: 0;
   line-height: 1;
+}
+
+.page-card .stage-favorite-icon {
+  width: 12px;
+  height: 12px;
+  display: block;
+  object-fit: contain;
 }
 
 .page-card .stage-favorite-button.active {
