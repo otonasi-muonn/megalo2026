@@ -55,6 +55,12 @@ type TranspileValidateResponse = {
   }>
 }
 
+type StateEventResponse = {
+  recorded: boolean
+  eventId?: string
+  reason?: string
+}
+
 const EXPECTED_UI_ROOT_ID = 'ccss-ui-root'
 const EXPECTED_GAME_ROOT_ID = 'ccss-game-root'
 const DEFAULT_VALIDATE_SOURCE = `import { useState } from 'react'
@@ -111,10 +117,12 @@ export const CcssPocPage = () => {
   const [isValidatingSource, setIsValidatingSource] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
+  const [stateEventStatus, setStateEventStatus] = useState<string | null>(null)
   const [selectedStateId, setSelectedStateId] = useState('')
   const [sourceInput, setSourceInput] = useState(DEFAULT_VALIDATE_SOURCE)
   const [validateBearerToken, setValidateBearerToken] = useState('')
   const [validateResult, setValidateResult] = useState<TranspileValidateResponse | null>(null)
+  const sessionKey = useMemo(() => `ccss-poc-${crypto.randomUUID()}`, [])
 
   const selectedState = useMemo(() => {
     if (!manifest || manifest.states.length === 0) {
@@ -128,6 +136,7 @@ export const CcssPocPage = () => {
       setIsLoading(true)
       setErrorMessage(null)
       setAppliedRecipes([])
+      setStateEventStatus(null)
 
       const [manifestResponse, cssResponse, cResponse] = await Promise.all([
         fetch('/ccss/ccss.manifest.json', { cache: 'no-store' }),
@@ -162,7 +171,34 @@ export const CcssPocPage = () => {
     }
   }, [])
 
-  const toggleSelectedState = useCallback(() => {
+  const recordStateEvent = useCallback(async (
+    stateId: string,
+    eventName: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+    patchId?: string,
+  ) => {
+    try {
+      const response = await apiPost<StateEventResponse>('/api/ccss/state-events', {
+        sessionKey,
+        stateId,
+        eventName,
+        requestId,
+        patchId,
+        payload,
+      })
+
+      if (response.recorded) {
+        setStateEventStatus(`recorded: ${eventName}`)
+      } else {
+        setStateEventStatus(`skipped: ${response.reason ?? 'disabled'}`)
+      }
+    } catch (error) {
+      setStateEventStatus(`failed: ${getErrorMessage(error)}`)
+    }
+  }, [sessionKey])
+
+  const toggleSelectedState = useCallback(async () => {
     if (!selectedState || !uiRootRef.current) {
       return
     }
@@ -174,7 +210,15 @@ export const CcssPocPage = () => {
       return
     }
     input.checked = !input.checked
-  }, [selectedState])
+    await recordStateEvent(
+      selectedState.stateId,
+      'ui:state:set',
+      {
+        checked: input.checked,
+        source: 'ccss-poc',
+      },
+    )
+  }, [recordStateEvent, selectedState])
 
   const applyPatchFromApi = useCallback(async () => {
     const root = uiRootRef.current
@@ -205,12 +249,22 @@ export const CcssPocPage = () => {
       }
 
       setAppliedRecipes(patch.recipeIds)
+      await recordStateEvent(
+        stateId,
+        'style:patch:applied',
+        {
+          source: 'ccss-poc',
+          recipeIds: patch.recipeIds,
+        },
+        patch.requestId,
+        patch.patchId,
+      )
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
       setIsApplyingPatch(false)
     }
-  }, [selectedState])
+  }, [recordStateEvent, selectedState])
 
   const validateSourceWithApi = useCallback(async () => {
     try {
@@ -377,6 +431,9 @@ export const CcssPocPage = () => {
           </p>
           {appliedRecipes.length > 0 && (
             <p className="success-text">applied recipes: {appliedRecipes.join(', ')}</p>
+          )}
+          {stateEventStatus && (
+            <p className="status-text">state-events: {stateEventStatus}</p>
           )}
         </div>
       )}
