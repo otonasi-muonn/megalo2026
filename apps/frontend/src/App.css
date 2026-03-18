@@ -209,6 +209,7 @@
 }
 
 .canvas-wrapper.sea-background {
+  background-color: #4a90d9;
   background-image:
     repeating-linear-gradient(
       0deg,
