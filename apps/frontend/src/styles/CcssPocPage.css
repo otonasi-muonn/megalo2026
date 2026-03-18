@@ -11,6 +11,22 @@
   margin: 0;
 }
 
+.ccss-state-select {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.ccss-state-select select {
+  min-width: 320px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #ffffff;
+}
+
 .ccss-runtime-grid {
   display: grid;
   gap: 16px;

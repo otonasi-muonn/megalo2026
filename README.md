@@ -129,7 +129,7 @@ pnpm --filter frontend dev
 - エラー終了しないこと
 - `examples/output` と `apps/frontend/public/ccss` に生成物3点が揃うこと
 - ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
-- `生成物を読み込む` 後に `style-patch API適用` を押すと、`applied recipes` が表示されること
+- `生成物を読み込む` 後に `対象state` を選択し、`style-patch API適用` を押すと、`applied recipes` が表示されること
 - `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
 
 #### 2. 異常系（サブセット外入力）

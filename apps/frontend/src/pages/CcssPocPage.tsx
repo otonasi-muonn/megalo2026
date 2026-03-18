@@ -111,11 +111,17 @@ export const CcssPocPage = () => {
   const [isValidatingSource, setIsValidatingSource] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [appliedRecipes, setAppliedRecipes] = useState<string[]>([])
+  const [selectedStateId, setSelectedStateId] = useState('')
   const [sourceInput, setSourceInput] = useState(DEFAULT_VALIDATE_SOURCE)
   const [validateBearerToken, setValidateBearerToken] = useState('')
   const [validateResult, setValidateResult] = useState<TranspileValidateResponse | null>(null)
 
-  const firstState = useMemo(() => manifest?.states[0] ?? null, [manifest])
+  const selectedState = useMemo(() => {
+    if (!manifest || manifest.states.length === 0) {
+      return null
+    }
+    return manifest.states.find((state) => state.stateId === selectedStateId) ?? manifest.states[0]
+  }, [manifest, selectedStateId])
 
   const loadGeneratedAssets = useCallback(async () => {
     try {
@@ -146,6 +152,7 @@ export const CcssPocPage = () => {
       const nextHtml = extractHtmlFromGeneratedC(cSource)
 
       setManifest(nextManifest)
+      setSelectedStateId(nextManifest.states[0]?.stateId ?? '')
       setGeneratedCss(nextCss)
       setGeneratedHtml(nextHtml)
     } catch (error) {
@@ -155,23 +162,23 @@ export const CcssPocPage = () => {
     }
   }, [])
 
-  const toggleFirstState = useCallback(() => {
-    if (!firstState || !uiRootRef.current) {
+  const toggleSelectedState = useCallback(() => {
+    if (!selectedState || !uiRootRef.current) {
       return
     }
 
-    const selector = `#${escapeSelectorId(firstState.stateId)}`
+    const selector = `#${escapeSelectorId(selectedState.stateId)}`
     const input = uiRootRef.current.querySelector<HTMLInputElement>(selector)
     if (!input) {
-      setErrorMessage(`state input が見つかりません: ${firstState.stateId}`)
+      setErrorMessage(`state input が見つかりません: ${selectedState.stateId}`)
       return
     }
     input.checked = !input.checked
-  }, [firstState])
+  }, [selectedState])
 
   const applyPatchFromApi = useCallback(async () => {
     const root = uiRootRef.current
-    const stateId = firstState?.stateId
+    const stateId = selectedState?.stateId
     if (!root || !stateId) {
       return
     }
@@ -203,7 +210,7 @@ export const CcssPocPage = () => {
     } finally {
       setIsApplyingPatch(false)
     }
-  }, [firstState])
+  }, [selectedState])
 
   const validateSourceWithApi = useCallback(async () => {
     try {
@@ -313,17 +320,35 @@ export const CcssPocPage = () => {
       </p>
 
       <div className="inline-actions">
+        {manifest && (
+          <label className="ccss-state-select">
+            <span>対象state</span>
+            <select
+              value={selectedState?.stateId ?? ''}
+              onChange={(event) => setSelectedStateId(event.target.value)}
+            >
+              {manifest.states.map((state) => (
+                <option key={state.stateId} value={state.stateId}>
+                  {state.stateId}
+                  {state.kind === 'enum' && state.enumValues && state.enumValues.length > 0
+                    ? ` (${state.enumValues.join('|')})`
+                    : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="button" className="button" onClick={loadGeneratedAssets} disabled={isLoading}>
           {isLoading ? '読み込み中...' : '生成物を読み込む'}
         </button>
-        <button type="button" className="button secondary" onClick={toggleFirstState} disabled={!firstState}>
-          先頭stateを切り替え
+        <button type="button" className="button secondary" onClick={toggleSelectedState} disabled={!selectedState}>
+          選択stateを切り替え
         </button>
         <button
           type="button"
           className="button secondary"
           onClick={applyPatchFromApi}
-          disabled={!manifest || !firstState || isApplyingPatch}
+          disabled={!manifest || !selectedState || isApplyingPatch}
         >
           {isApplyingPatch ? '適用中...' : 'style-patch API適用'}
         </button>
@@ -346,6 +371,9 @@ export const CcssPocPage = () => {
                 ? `${state.stateId}(${state.enumValues?.join('|') ?? ''})`
                 : state.stateId
             )).join(', ')}
+          </p>
+          <p className="status-text">
+            selected: {selectedState?.stateId ?? '-'}
           </p>
           {appliedRecipes.length > 0 && (
             <p className="success-text">applied recipes: {appliedRecipes.join(', ')}</p>

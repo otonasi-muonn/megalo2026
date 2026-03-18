@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "compiler": "@ccss/compiler",
-  "generatedAt": "2026-03-18T01:59:59.919Z",
+  "generatedAt": "2026-03-18T02:12:33.005Z",
   "sourcePath": "C:\\.program_code\\megalo2026\\packages\\ccss-compiler\\examples\\input\\sample.tsx",
   "component": {
     "name": "SamplePanel",
