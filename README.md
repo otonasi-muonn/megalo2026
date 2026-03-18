@@ -45,8 +45,13 @@ pnpm supabase:status
 
 ```bash
 pnpm --filter hono dev
-pnpm --filter frontend dev
+pnpm frontend:dev:vite
+# CCSSランタイムをホーム表示で確認する場合
+pnpm frontend:dev:ccss
 ```
+
+`frontend:dev:vite` は既存React UI（Vite構成）を表示します。  
+`frontend:dev:ccss` は同じアプリシェルを使い、`/` をCCSSランタイム表示へ切り替えます。
 
 ### 4. DBリセット / 停止
 
@@ -116,6 +121,7 @@ pnpm ccss:checks
 `pnpm ccss:checks` で、CCSS関連の検証一式（compiler/build/contract/smoke/frontend/backend）をまとめて実行できます。
 `.github/workflows/ccss-checks.yml` は PR と `develop` への push で `pnpm ccss:checks` を実行します。
 workflow完了時には `apps/frontend/public/ccss` の生成物が `ccss-generated-assets` として7日間保存されます。
+フロント表示モードは Vite の実行モードで切替でき、`pnpm frontend:dev:ccss`（`vite --mode ccss`）でCCSSモード起動できます。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
@@ -128,7 +134,7 @@ workflow完了時には `apps/frontend/public/ccss` の生成物が `ccss-genera
 pnpm ccss:compiler:typecheck
 pnpm ccss:poc:prepare
 pnpm --filter hono dev
-pnpm --filter frontend dev
+pnpm frontend:dev:ccss
 ```
 
 期待結果:

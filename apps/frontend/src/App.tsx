@@ -76,6 +76,17 @@ const isRouteActive = (currentPathname: string, path: string): boolean => {
   return currentPathname === path || currentPathname.startsWith(`${path}/`)
 }
 
+type FrontendUiMode = 'vite' | 'ccss'
+
+const resolveFrontendUiMode = (): FrontendUiMode => {
+  const raw = (import.meta.env.VITE_FRONTEND_UI_MODE as string | undefined)?.trim().toLowerCase()
+  if (raw === 'ccss' || raw === 'vite') {
+    return raw
+  }
+
+  return import.meta.env.MODE === 'ccss' ? 'ccss' : 'vite'
+}
+
 function App() {
   const [locationState, setLocationState] = useState(getCurrentLocation)
 
@@ -83,21 +94,15 @@ function App() {
 
   const pathname = normalizePathname(locationState.pathname)
   const resultQuery = useMemo(() => parseResultQuery(locationState.search), [locationState.search])
+  const frontendUiMode = resolveFrontendUiMode()
+  const isCcssMode = frontendUiMode === 'ccss'
 
   const editStageId = getPathParam(pathname, '/edit/')
   const playStageId = getPathParam(pathname, '/play/')
 
   const content = (() => {
     if (pathname === '/') {
-      return <HomePage />
-    }
-
-    if (pathname === '/dashboard') {
-      return <DashboardPage />
-    }
-
-    if (pathname === '/create') {
-      return <CreatePage />
+      return isCcssMode ? <CcssPocPage /> : <HomePage />
     }
 
     if (pathname === '/ccss-poc') {
@@ -106,6 +111,33 @@ function App() {
 
     if (pathname === '/ccss-audit') {
       return <CcssAuditPage />
+    }
+
+    if (isCcssMode) {
+      return (
+        <section className="page-card">
+          <h1 className="page-heading">CCSSモードで起動中です</h1>
+          <p className="status-text">
+            このモードでは CCSSランタイム（/）と監査画面（/ccss-audit）を確認できます。
+          </p>
+          <div className="inline-actions">
+            <AppLink to="/" className="button">
+              CCSSランタイムへ
+            </AppLink>
+            <AppLink to="/ccss-audit" className="button secondary">
+              CCSS監査へ
+            </AppLink>
+          </div>
+        </section>
+      )
+    }
+
+    if (pathname === '/dashboard') {
+      return <DashboardPage />
+    }
+
+    if (pathname === '/create') {
+      return <CreatePage />
     }
 
     if (editStageId) {
@@ -139,42 +171,64 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <AppLink className="app-title" to="/">
-          megalo2026
-        </AppLink>
+        <div className="app-brand">
+          <AppLink className="app-title" to="/">
+            megalo2026
+          </AppLink>
+          <span className="app-mode-badge">ui mode: {frontendUiMode}</span>
+        </div>
         <nav className="app-nav" aria-label="主要ナビゲーション">
-          <AppLink
-            to="/"
-            className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
-          >
-            ホーム
-          </AppLink>
-          <AppLink
-            to="/dashboard"
-            className={
-              isRouteActive(pathname, '/dashboard') ? 'nav-link active' : 'nav-link'
-            }
-          >
-            ダッシュボード
-          </AppLink>
-          <AppLink
-            to="/create"
-            className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
-          >
-            ステージ作成
-          </AppLink>
-          <AppLink
-            to="/ccss-poc"
-            className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
-          >
-            CCSS PoC
-          </AppLink>
-          <AppLink
-            to="/ccss-audit"
-            className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
-          >
-            CCSS監査
-          </AppLink>
+          {isCcssMode ? (
+            <>
+              <AppLink
+                to="/"
+                className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSSランタイム
+              </AppLink>
+              <AppLink
+                to="/ccss-audit"
+                className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS監査
+              </AppLink>
+            </>
+          ) : (
+            <>
+              <AppLink
+                to="/"
+                className={isRouteActive(pathname, '/') ? 'nav-link active' : 'nav-link'}
+              >
+                ホーム
+              </AppLink>
+              <AppLink
+                to="/dashboard"
+                className={
+                  isRouteActive(pathname, '/dashboard') ? 'nav-link active' : 'nav-link'
+                }
+              >
+                ダッシュボード
+              </AppLink>
+              <AppLink
+                to="/create"
+                className={isRouteActive(pathname, '/create') ? 'nav-link active' : 'nav-link'}
+              >
+                ステージ作成
+              </AppLink>
+              <AppLink
+                to="/ccss-poc"
+                className={isRouteActive(pathname, '/ccss-poc') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS PoC
+              </AppLink>
+              <AppLink
+                to="/ccss-audit"
+                className={isRouteActive(pathname, '/ccss-audit') ? 'nav-link active' : 'nav-link'}
+              >
+                CCSS監査
+              </AppLink>
+            </>
+          )}
         </nav>
       </header>
       <main className="app-main">{content}</main>

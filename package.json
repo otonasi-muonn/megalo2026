@@ -8,6 +8,8 @@
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
     "supabase:status": "supabase status",
+    "frontend:dev:vite": "pnpm --filter frontend dev:vite",
+    "frontend:dev:ccss": "pnpm --filter frontend dev:ccss",
     "ccss:compiler:typecheck": "pnpm --filter @ccss/compiler run typecheck",
     "ccss:compiler:sample": "pnpm --filter @ccss/compiler run sample",
     "ccss:assets:sync": "node scripts/ccss-sync-assets.mjs",
