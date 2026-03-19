@@ -75,6 +75,14 @@
   padding: 10px 12px;
 }
 
+.error-text p {
+  margin: 0;
+}
+
+.retry-button {
+  margin-top: 8px;
+}
+
 .meta-text {
   margin: 4px 0 0;
   color: #6b7280;

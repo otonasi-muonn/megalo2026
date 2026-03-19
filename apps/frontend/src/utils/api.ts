@@ -13,11 +13,23 @@ interface RequestOptions {
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8787'
 
+const isLoopbackHost = (hostname: string): boolean =>
+  hostname === '127.0.0.1' || hostname === 'localhost'
+
+const getRuntimeOrigin = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return window.location.origin
+}
+
 const buildApiBaseCandidates = (primaryBaseUrl: string): string[] => {
   const candidates = [primaryBaseUrl]
+  let primaryIsLoopback = false
 
   try {
     const parsed = new URL(primaryBaseUrl)
+    primaryIsLoopback = isLoopbackHost(parsed.hostname)
     const alternateHost =
       parsed.hostname === '127.0.0.1'
         ? 'localhost'
@@ -30,6 +42,20 @@ const buildApiBaseCandidates = (primaryBaseUrl: string): string[] => {
     }
   } catch {
     // URLが不正な場合は primary のみで処理する
+  }
+
+  const runtimeOrigin = getRuntimeOrigin()
+  if (runtimeOrigin) {
+    try {
+      const runtimeHost = new URL(runtimeOrigin).hostname
+      if (!isLoopbackHost(runtimeHost) && primaryIsLoopback) {
+        candidates.unshift(runtimeOrigin)
+      } else {
+        candidates.push(runtimeOrigin)
+      }
+    } catch {
+      // runtime origin が不正な場合は無視
+    }
   }
 
   return Array.from(new Set(candidates))
@@ -69,6 +95,18 @@ const isNetworkFetchError = (error: unknown): boolean => {
   return false
 }
 
+const isJsonContentType = (contentType: string): boolean =>
+  contentType.includes('application/json') || contentType.includes('+json')
+
+const looksLikeHtml = (text: string): boolean => {
+  const normalized = text.trimStart().toLowerCase()
+  return (
+    normalized.startsWith('<!doctype html') ||
+    normalized.startsWith('<html') ||
+    normalized.startsWith('<!doctype')
+  )
+}
+
 const requestJson = async <TResponse>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
@@ -86,7 +124,7 @@ const requestJson = async <TResponse>(
     }
   }
 
-  let lastNetworkError: unknown = null
+  let lastAttemptError: unknown = null
 
   for (const apiBaseUrl of API_BASE_URL_CANDIDATES) {
     const requestUrl = buildUrl(apiBaseUrl, path, options.query)
@@ -98,28 +136,64 @@ const requestJson = async <TResponse>(
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: options.signal,
       })
+      const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
 
       if (!response.ok) {
         const bodyText = await response.text()
+        if (contentType.includes('text/html') || looksLikeHtml(bodyText)) {
+          lastAttemptError = new Error(
+            `API候補がHTMLを返しました: ${requestUrl} (${response.status})`,
+          )
+          continue
+        }
         throw new Error(
           `API request failed: ${method} ${path} (${response.status}) ${bodyText}`,
         )
       }
 
-      return (await response.json()) as TResponse
+      const bodyText = await response.text()
+
+      if (!isJsonContentType(contentType)) {
+        if (contentType.includes('text/html') || looksLikeHtml(bodyText)) {
+          lastAttemptError = new Error(
+            `API候補がHTMLを返しました: ${requestUrl}`,
+          )
+          continue
+        }
+        throw new Error(
+          `API response is not JSON: ${method} ${path} (${contentType || 'unknown content-type'})`,
+        )
+      }
+
+      try {
+        return JSON.parse(bodyText) as TResponse
+      } catch (error) {
+        if (looksLikeHtml(bodyText)) {
+          lastAttemptError = new Error(
+            `API候補がJSONではなくHTMLを返しました: ${requestUrl}`,
+          )
+          continue
+        }
+        const parseErrorMessage = error instanceof Error ? error.message : 'invalid JSON'
+        throw new Error(
+          `API response parse failed: ${method} ${path} (${parseErrorMessage})`,
+          { cause: error },
+        )
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         throw error
       }
-      if (!isNetworkFetchError(error)) {
-        throw error
+      if (isNetworkFetchError(error)) {
+        lastAttemptError = error
+        continue
       }
-      lastNetworkError = error
+      throw error
     }
   }
 
   const detail =
-    lastNetworkError instanceof Error ? lastNetworkError.message : 'unknown network error'
+    lastAttemptError instanceof Error ? lastAttemptError.message : 'unknown network error'
   throw new Error(
     `APIサーバーへ接続できませんでした。バックエンド起動状態とURLを確認してください。（試行: ${API_BASE_URL_CANDIDATES.join(', ')} / 詳細: ${detail}）`,
   )

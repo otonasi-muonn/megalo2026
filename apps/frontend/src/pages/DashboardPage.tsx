@@ -29,8 +29,13 @@ const initialPagination: Pagination = {
   total_pages: 0,
 }
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : '不明なエラーが発生しました。'
+const getErrorMessage = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : '不明なエラーが発生しました。'
+  if (message.includes('APIサーバーへ接続できませんでした')) {
+    return 'APIサーバーに接続できません。バックエンド起動後に再読み込みしてください。'
+  }
+  return message
+}
 
 type StageSortKey = 'favorite' | 'created' | 'name'
 type SortOrder = 'desc' | 'asc'
@@ -53,6 +58,7 @@ export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardP
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   const filteredStages = stages.filter((stage) =>
     stage.title.toLowerCase().includes(searchKeyword.trim().toLowerCase())
@@ -195,7 +201,7 @@ export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardP
     void loadDashboard()
 
     return () => controller.abort()
-  }, [currentUserId])
+  }, [currentUserId, reloadToken])
 
   return (
     <section className="page-card dashboard-page">
@@ -207,6 +213,9 @@ export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardP
         <AppLink to="/" className="button secondary">
           ホームへ戻る
         </AppLink>
+        <a href="/#official-stages" className="button secondary">
+          公式ステージを見る
+        </a>
         <AppLink to="/create" className="button secondary">
           ステージ作成へ
         </AppLink>
@@ -214,9 +223,16 @@ export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardP
 
       {isLoading && <p className="status-text">読み込み中...</p>}
       {errorMessage && (
-        <p className="error-text" role="alert">
-          処理失敗: {errorMessage}
-        </p>
+        <div className="error-text" role="alert">
+          <p>処理失敗: {errorMessage}</p>
+          <button
+            type="button"
+            className="button secondary retry-button"
+            onClick={() => setReloadToken((count) => count + 1)}
+          >
+            再読み込み
+          </button>
+        </div>
       )}
       {shareMessage && <p className="success-text">{shareMessage}</p>}
       {shareErrorMessage && (

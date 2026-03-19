@@ -13,8 +13,13 @@ const initialPagination: Pagination = {
   total_pages: 0,
 }
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : '不明なエラーが発生しました。'
+const getErrorMessage = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : '不明なエラーが発生しました。'
+  if (message.includes('APIサーバーへ接続できませんでした')) {
+    return 'APIサーバーに接続できません。バックエンド起動後に再読み込みしてください。'
+  }
+  return message
+}
 
 const OFFICIAL_AUTHOR_ID = 'a0000000-0000-4000-8000-000000000001'
 
@@ -37,6 +42,7 @@ export const HomePage = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -71,7 +77,7 @@ export const HomePage = ({
     void loadStages()
 
     return () => controller.abort()
-  }, [])
+  }, [reloadToken])
 
   const handleCopyShareLink = async (stage: StageListItemDto) => {
     try {
@@ -131,24 +137,34 @@ export const HomePage = ({
                 {isSigningOut ? 'ログアウト中...' : 'ログアウト'}
               </button>
             ) : (
-              <AppLink to="/login" className="button secondary hero-auth-button">
-                ログイン
-              </AppLink>
-            )}
+                <AppLink to="/login" className="button secondary hero-auth-button">
+                  ログイン
+                </AppLink>
+              )}
+            <a href="#official-stages" className="button secondary hero-auth-button">
+              公式ステージを見る
+            </a>
           </div>
         </div>
       </section>
 
-      <section className="page-card home-stage-card">
+      <section className="page-card home-stage-card" id="official-stages">
         <h2 className="page-heading">公式ステージ</h2>
         <p className="status-text">公式アカウントが作成したステージをプレイできます。</p>
 
         {isLoading && <p className="status-text">読み込み中...</p>}
 
         {errorMessage && (
-          <p className="error-text" role="alert">
-            読み込み失敗: {errorMessage}
-          </p>
+          <div className="error-text" role="alert">
+            <p>読み込み失敗: {errorMessage}</p>
+            <button
+              type="button"
+              className="button secondary retry-button"
+              onClick={() => setReloadToken((count) => count + 1)}
+            >
+              再読み込み
+            </button>
+          </div>
         )}
         {shareMessage && <p className="success-text">{shareMessage}</p>}
         {shareErrorMessage && (
