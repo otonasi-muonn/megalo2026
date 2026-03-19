@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AppLink } from '../components/AppLink'
+import { StageStats } from '../components/stage/StageStats'
 import { Trash2 } from 'lucide-react'
 import { PencilLine } from 'lucide-react'
 import { ArrowDownUp } from 'lucide-react'
@@ -28,14 +29,24 @@ const initialPagination: Pagination = {
   total_pages: 0,
 }
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : '不明なエラーが発生しました。'
+const getErrorMessage = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : '不明なエラーが発生しました。'
+  if (message.includes('APIサーバーへ接続できませんでした')) {
+    return 'APIサーバーに接続できません。バックエンド起動後に再読み込みしてください。'
+  }
+  return message
+}
 
 type StageSortKey = 'favorite' | 'created' | 'name'
 type SortOrder = 'desc' | 'asc'
 
-export const DashboardPage = () => {
-  const [displayName, setDisplayName] = useState('未取得')
+type DashboardPageProps = {
+  currentUserId: string
+  fallbackDisplayName: string
+}
+
+export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardPageProps) => {
+  const [displayName, setDisplayName] = useState(fallbackDisplayName)
   const [stages, setStages] = useState<DashboardStage[]>([])
   const [pagination, setPagination] = useState<Pagination>(initialPagination)
   const [sortKey, setSortKey] = useState<StageSortKey>('created')
@@ -47,6 +58,7 @@ export const DashboardPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   const filteredStages = stages.filter((stage) =>
     stage.title.toLowerCase().includes(searchKeyword.trim().toLowerCase())
@@ -119,35 +131,48 @@ export const DashboardPage = () => {
     setStages((prevStages) => {
       return prevStages.map((stage) =>
         stage.id === stageId ? { ...stage, title: newName } : stage
-      );
-    });
+      )
+    })
   }
 
   const handleUploadImage = (stageId: string, imageUrl: string) => {
     setStages((prevStages) => {
       return prevStages.map((stage) =>
         stage.id === stageId ? { ...stage, imageUrl } : stage
-      );
-    });
+      )
+    })
   }
+
+  useEffect(() => {
+    setDisplayName(fallbackDisplayName)
+  }, [fallbackDisplayName])
 
   useEffect(() => {
     const controller = new AbortController()
 
     const loadDashboard = async () => {
+      if (!currentUserId) {
+        setErrorMessage('ユーザー情報を取得できなかったため、ダッシュボードを表示できません。')
+        setStages([])
+        setPagination(initialPagination)
+        setIsLoading(false)
+        return
+      }
+
       try {
         setIsLoading(true)
         setErrorMessage(null)
 
-        const profileResponse = await apiGet<ProfileResponse>('/api/profiles/me', {
+        const profileNamePromise = apiGet<ProfileResponse>('/api/profiles/me', {
           signal: controller.signal,
           withAuth: true,
         })
-        setDisplayName(profileResponse.data.display_name)
+          .then((profileResponse) => profileResponse.data.display_name)
+          .catch(() => null)
 
         const stageResponse = await apiGet<StageListResponse>('/api/stages', {
           query: {
-            author_id: profileResponse.data.id,
+            author_id: currentUserId,
             page: 1,
             limit: 10,
           },
@@ -157,6 +182,10 @@ export const DashboardPage = () => {
 
         setStages(stageResponse.data)
         setPagination(stageResponse.pagination)
+        const profileName = await profileNamePromise
+        if (typeof profileName === 'string' && profileName.trim().length > 0) {
+          setDisplayName(profileName.trim())
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return
@@ -172,7 +201,7 @@ export const DashboardPage = () => {
     void loadDashboard()
 
     return () => controller.abort()
-  }, [])
+  }, [currentUserId, reloadToken])
 
   return (
     <section className="page-card dashboard-page">
@@ -180,12 +209,27 @@ export const DashboardPage = () => {
       <p className="status-text">
         {displayName} さんのステージ一覧です。
       </p>
+      <div className="inline-actions dashboard-page-nav">
+        <AppLink to="/" className="button secondary">
+          ホームへ戻る
+        </AppLink>
+        <AppLink to="/create" className="button secondary">
+          ステージ作成へ
+        </AppLink>
+      </div>
 
       {isLoading && <p className="status-text">読み込み中...</p>}
       {errorMessage && (
-        <p className="error-text" role="alert">
-          処理失敗: {errorMessage}
-        </p>
+        <div className="error-text" role="alert">
+          <p>処理失敗: {errorMessage}</p>
+          <button
+            type="button"
+            className="button secondary retry-button"
+            onClick={() => setReloadToken((count) => count + 1)}
+          >
+            再読み込み
+          </button>
+        </div>
       )}
       {shareMessage && <p className="success-text">{shareMessage}</p>}
       {shareErrorMessage && (
@@ -320,6 +364,12 @@ export const DashboardPage = () => {
                   >
                     {stage.title}
                   </div>
+                  <StageStats
+                    playCount={stage.play_count}
+                    clearCount={stage.clear_count}
+                    likeCount={stage.like_count}
+                    className="meta-text stage-stats-text"
+                  />
                   <div className="favorite-rating">
                     <button
                       type="button"

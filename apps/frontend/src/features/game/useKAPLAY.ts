@@ -408,23 +408,6 @@ export const useKAPLAY = ({
     }
   }, [mode, initialStageData])
 
-  useEffect(() => {
-    if (mode !== 'play' && mode !== 'test') return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === 'c') {
-        onGameEndRef.current?.(true)
-      } else if (event.key.toLowerCase() === 'f') {
-        onGameEndRef.current?.(false)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [mode])
-
   const setStageData = useCallback((nextStageData: StageData) => {
     latestStageDataRef.current = nextStageData
     onStageDataChangeRef.current?.()

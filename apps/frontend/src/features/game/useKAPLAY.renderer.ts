@@ -68,13 +68,6 @@ export const drawStagePreview = (
       context.fill()
     }
   }
-  if (mode !== 'edit' && mode !== 'test') {
-    context.fillStyle = 'rgba(147, 197, 253, 0.3)'
-    context.beginPath()
-    context.arc(spawnX, spawnY, 8, 0, Math.PI * 2)
-    context.fill()
-  }
-
   const goalX = toCanvasX(stageData.goal.position.x, stageWidth, canvasWidth)
   const goalY = toCanvasY(stageData.goal.position.y, stageHeight, canvasHeight)
   const goalW = (stageData.goal.size.width / stageWidth) * canvasWidth

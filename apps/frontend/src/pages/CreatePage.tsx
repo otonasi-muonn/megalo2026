@@ -306,11 +306,9 @@ export const CreatePage = () => {
   }
 
   return (
-    <section className="page-card">
+    <section className="page-card create-page-card">
       <h1 className="page-heading">ステージ作成</h1>
-      <p className="status-text">
-        保存アクション時に <code>POST /api/stages</code> を実行します。
-      </p>
+      <p className="status-text">ギミックを配置してステージを作成します。</p>
 
       <ItemPalette />
 
@@ -363,6 +361,11 @@ export const CreatePage = () => {
             </button>
           </>
         )}
+        {isTesting && (
+          <p className="status-text debug-help-text">
+            プレイ中です。ゴールに到達すると公開可能になります。
+          </p>
+        )}
       </div>
 
       {liftedItem ? (
@@ -379,17 +382,12 @@ export const CreatePage = () => {
       <div className="inline-actions">
         <button
           type="button"
-          className="button secondary"
+          className="button secondary test-play-button"
           onClick={handleStartTestPlay}
           disabled={isTesting}
         >
           {isTesting ? 'テスト中...' : 'テストプレイ開始'}
         </button>
-        {isTesting && (
-          <p className="status-text">
-            プレイ中です。ゴールに到達すると公開可能になります。（デバッグ: C キー=クリア / F キー=失敗）
-          </p>
-        )}
       </div>
 
       {isClearChecked && (
@@ -409,11 +407,11 @@ export const CreatePage = () => {
         </label>
 
         <div className="inline-actions">
-          <button className="button secondary" type="submit" disabled={isSubmitting}>
+          <button className="button secondary create-action-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? '保存中...' : '下書き保存'}
           </button>
           <button
-            className="button"
+            className="button create-action-button"
             type="button"
             disabled={isSubmitting || !isClearChecked}
             title={!isClearChecked ? 'テストプレイでクリアしてから公開できます' : undefined}
@@ -421,7 +419,7 @@ export const CreatePage = () => {
           >
             {isSubmitting ? '保存中...' : '公開して作成'}
           </button>
-          <AppLink to="/dashboard" className="button secondary">
+          <AppLink to="/dashboard" className="button secondary create-action-button">
             ダッシュボードへ
           </AppLink>
         </div>

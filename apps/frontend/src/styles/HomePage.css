@@ -1,13 +1,13 @@
 .hero-section {
   background-image: url('/images/home_haikei.png');
   background-size: cover;
-  background-position: center;
+  background-position: center top;
   background-repeat: no-repeat;
   border-radius: 16px;
-  min-height: 56vh;
-  padding: 24px;
+  min-height: min(72vh, 760px);
+  padding: clamp(16px, 3vw, 28px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   text-align: center;
   color: #ffffff;
@@ -17,8 +17,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  justify-content: flex-start;
+  gap: 12px;
   width: 100%;
+  max-width: 1120px;
 }
 
 .hero-title {
@@ -37,11 +39,94 @@
 
 .hero-nav {
   display: flex;
-  gap: 24px;
-  flex-wrap: nowrap;
+  gap: clamp(10px, 2vw, 24px);
+  flex-wrap: wrap;
   justify-content: center;
-  margin-top: 0;
-  transform: translateY(14vh);
+  margin-top: clamp(170px, 40vh, 420px);
+}
+
+.hero-auth-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+}
+
+.hero-auth-status {
+  color: #f8fafc;
+  text-shadow: 0 1px 8px rgba(3, 18, 29, 0.35);
+}
+
+.hero-auth-button {
+  min-width: 120px;
+}
+
+.page-card.home-stage-card {
+  width: 100%;
+  margin-top: 14px;
+  background-image: url('/images/paper2.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.home-stage-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.home-stage-item {
+  min-width: 0;
+}
+
+.official-stage-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(128, 97, 70, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 18px rgba(74, 54, 36, 0.08);
+  padding: 14px;
+}
+
+.official-stage-label {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #6b442a;
+}
+
+.official-stage-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+  color: #1f2937;
+}
+
+.official-stage-metrics {
+  margin: 0;
+  color: #4b5563;
+}
+
+.official-stage-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.official-stage-actions .button {
+  flex: 1 1 130px;
 }
 
 .hero-button {
@@ -110,28 +195,63 @@
   transform: scale(1.05);
 }
 
+@media (max-width: 900px) {
+  .hero-section {
+    min-height: min(65vh, 640px);
+  }
+
+  .hero-nav {
+    margin-top: clamp(140px, 32vh, 320px);
+  }
+
+  .home-stage-grid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .hero-section {
-    min-height: 44vh;
-    padding: 16px;
+    min-height: 56vh;
+    border-radius: 12px;
   }
 
   .hero-nav {
     flex-direction: row;
-    flex-wrap: nowrap;
     width: 100%;
-    transform: translateY(9vh);
-    gap: 12px;
+    margin-top: clamp(100px, 24vh, 220px);
+    gap: 10px;
+  }
+
+  .page-card.home-stage-card {
+    margin-top: 10px;
   }
 
   .hero-button {
-    width: auto;
-    min-width: 0;
-    padding: 12px 18px;
-    font-size: 16px;
+    flex: 1 1 84px;
+    padding: 6px 10px;
   }
 
-  .button-icon {
+  .hero-button img {
+    max-height: 54px;
+  }
+
+  .hero-auth-actions {
+    justify-content: stretch;
+  }
+
+  .hero-auth-button {
+    width: 100%;
+  }
+
+  .home-stage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .official-stage-title {
     font-size: 18px;
+  }
+
+  .official-stage-actions .button {
+    flex: 1 1 100%;
   }
 }

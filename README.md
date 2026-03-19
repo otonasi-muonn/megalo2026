@@ -36,7 +36,7 @@ pnpm install
 ```bash
 # フロントエンド
 # apps/frontend/.env
-VITE_API_BASE_URL=http://localhost:8787
+VITE_API_BASE_URL=http://127.0.0.1:8787
 VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_ANON_KEY=<publishable_key>
 
@@ -78,14 +78,18 @@ pnpm dlx vercel dev --listen 8787
 # frontend (React / Vite)
 cd ../..
 pnpm frontend:dev:vite
-# CCSSランタイムをホーム表示で確認する場合
+# CCSS関連ルートを確認する場合
 pnpm frontend:dev:ccss
 ```
 
+ブラウザは `http://127.0.0.1:5173` でアクセスしてください。
+
 `frontend:dev:vite` は既存React UI（Vite構成）を表示します。  
-`frontend:dev:ccss` は同じアプリシェルを使い、`/` をCCSSランタイム表示へ切り替えます。
+`frontend:dev:ccss` も通常UIと同じルーティングで起動し、`/ccss-poc` と `/ccss-audit` を追加で確認できます。
+- ホーム（`/`）では、公式アカウントの公開ステージを一覧表示します。
+- 画面上部のグローバルヘッダーは廃止し、ホームのボタン（Play/Create/My Stages/ログイン）から遷移します。
 - `pnpm --filter hono dev` は現状サーバー待受を行わず、即終了します。
-- OAuth 検証時は `localhost` と `127.0.0.1` を混在させず、同じホストでアクセスしてください。
+- OAuth 検証時は `127.0.0.1` へ統一してアクセスしてください。
 
 ### 5. DBリセット / 停止
 
@@ -120,8 +124,8 @@ pnpm --filter hono typecheck
 確認例（ローカルVercel実行時）:
 
 ```bash
-curl -A "Twitterbot" http://localhost:5173/play/<stage-id>
-curl http://localhost:5173/api/ogp-image/<stage-id>?title=test-stage
+curl -A "Twitterbot" http://127.0.0.1:5173/play/<stage-id>
+curl http://127.0.0.1:5173/api/ogp-image/<stage-id>?title=test-stage
 ```
 
 期待結果:
@@ -182,7 +186,7 @@ pnpm ccss:checks
 `pnpm ccss:checks` で、CCSS関連の検証一式（compiler/build/contract/smoke/frontend/backend）をまとめて実行できます。
 `.github/workflows/ccss-checks.yml` は PR と `develop` への push で `pnpm ccss:checks` を実行します。
 workflow完了時には `apps/frontend/public/ccss` の生成物が `ccss-generated-assets` として7日間保存されます。
-フロント表示モードは Vite の実行モードで切替でき、`pnpm frontend:dev:ccss`（`vite --mode ccss`）でCCSSモード起動できます。
+フロント表示モードは Vite の実行モードで切替でき、`pnpm frontend:dev:ccss`（`vite --host 127.0.0.1 --mode ccss`）でCCSSモード起動できます。
 
 ### 動作確認方法（CCSS compiler + runtime PoC + validate API）
 
@@ -202,10 +206,10 @@ pnpm frontend:dev:ccss
 
 - エラー終了しないこと
 - `examples/output` と `apps/frontend/public/ccss` に生成物3点が揃うこと
-- ブラウザで `http://localhost:5173/ccss-poc` を開き、PoCページが表示されること
+- ブラウザで `http://127.0.0.1:5173/ccss-poc` を開き、PoCページが表示されること
 - `生成物を読み込む` 後に `対象state` を選択し、`style-patch API適用` を押すと、`applied recipes` と `state-events` の結果が表示されること
 - `transpile validate API` セクションの `Bearer token` に管理者JWTを入力して `ソース検証を実行` を押すと `OK` 結果が表示されること
-- `http://localhost:5173/ccss-audit` を開き、管理者Bearer tokenで `style-patch / transpile / state-events` 監査ログ一覧を取得できること
+- `http://127.0.0.1:5173/ccss-audit` を開き、管理者Bearer tokenで `style-patch / transpile / state-events` 監査ログ一覧を取得できること
 - `recent sessions` に sessionKey 候補と event件数が表示され、`sessionKeyで再取得` を押すと即時に `session trace` が再取得されること
 - `state-events フィルタ` の `sessionKey` を入力して取得した場合も、`session trace` に `state -> patch -> recipes` 相関が表示されること
 - `audit summary` に `rejectionCodes` / `status` / `eventNames` の集計が表示されること
