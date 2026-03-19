@@ -213,9 +213,6 @@ export const DashboardPage = ({ currentUserId, fallbackDisplayName }: DashboardP
         <AppLink to="/" className="button secondary">
           ホームへ戻る
         </AppLink>
-        <a href="/#official-stages" className="button secondary">
-          公式ステージを見る
-        </a>
         <AppLink to="/create" className="button secondary">
           ステージ作成へ
         </AppLink>

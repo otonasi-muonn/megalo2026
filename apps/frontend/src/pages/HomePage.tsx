@@ -137,13 +137,10 @@ export const HomePage = ({
                 {isSigningOut ? 'ログアウト中...' : 'ログアウト'}
               </button>
             ) : (
-                <AppLink to="/login" className="button secondary hero-auth-button">
-                  ログイン
-                </AppLink>
-              )}
-            <a href="#official-stages" className="button secondary hero-auth-button">
-              公式ステージを見る
-            </a>
+              <AppLink to="/login" className="button secondary hero-auth-button">
+                ログイン
+              </AppLink>
+            )}
           </div>
         </div>
       </section>
