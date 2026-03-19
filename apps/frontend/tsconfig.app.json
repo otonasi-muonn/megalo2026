@@ -5,7 +5,15 @@
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/types": ["../../packages/shared/src/index.ts"],
+      "@shared/types/*": ["../../packages/shared/src/types/*"]
+    },
+    /* 重要: typesを指定すると、ここに書かれたもの以外は自動ロードされません。
+       Reactの型(JSX.IntrinsicElementsなど)を認識させるために追加します。
+    */
+    "types": ["vite/client", "react", "react-dom"],
     "skipLibCheck": true,
 
     /* Bundler mode */

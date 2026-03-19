@@ -1,8 +1,18 @@
 {
   "name": "hono",
   "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "ccss:style-patch:contract": "tsx --env-file-if-exists=.env scripts/ccss-style-patch-contract.ts",
+    "ccss:recipe-integrity": "tsx --env-file-if-exists=.env scripts/ccss-recipe-integrity-check.ts",
+    "ccss:smoke": "tsx --env-file-if-exists=.env scripts/ccss-api-smoke-test.ts"
+  },
   "dependencies": {
-    "hono": "^4.12.8"
+    "@ccss/compiler": "workspace:*",
+    "@supabase/supabase-js": "^2.99.2",
+    "hono": "^4.12.8",
+    "jose": "^6.2.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
