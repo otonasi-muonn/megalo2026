@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ccss/compiler": "workspace:*",
-    "@supabase/supabase-js": "^2.99.2",
+    "@supabase/supabase-js": "^2.99.3",
     "hono": "^4.12.8",
     "jose": "^6.2.1"
   },
